@@ -17,7 +17,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 scheduler = AsyncIOScheduler()
 from app.Core.stop_order_manager import main_auto_stoporder_exit_system
-from app.Core.nse_live_data import fetch_live_nse_data_live_price
 
 
 
@@ -29,14 +28,13 @@ async def scheduled_task():
     if start_time <= now <= end_time:
         print(f"Scheduled task started at {now}")
         await main_auto_stoporder_exit_system()
-        await fetch_live_nse_data_live_price()
 
 
 
 async def start_system():
     print(text2art("TRADE BUDDY",font="small"))
     await init_db()
-    scheduler.add_job(scheduled_task, IntervalTrigger(minutes=1))
+    # scheduler.add_job(scheduled_task, IntervalTrigger(minutes=1))
     scheduler.start()
 
 async def shutdown_system():
