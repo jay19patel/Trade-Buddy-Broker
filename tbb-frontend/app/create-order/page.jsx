@@ -16,6 +16,7 @@ export default function StockSearchApp() {
   const [showSellDialog, setShowSellDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isStockSelected, setIsStockSelected] = useState(false)
   const dropdownRef = useRef(null)
   const inputRef = useRef(null)
   const { toast } = useToast()
@@ -35,7 +36,7 @@ export default function StockSearchApp() {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (searchTerm.length >= 3) {
+      if (searchTerm.length >= 3 && !isStockSelected) {
         fetchSearchResults()
       } else {
         setSearchResults([])
@@ -44,47 +45,59 @@ export default function StockSearchApp() {
     }, 300)
 
     return () => clearTimeout(delayDebounceFn)
-  }, [searchTerm])
+  }, [searchTerm, isStockSelected])
 
   const fetchSearchResults = async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`http://localhost:8000/home/search?q=${searchTerm}`)
       const data = await response.json() 
-      console.log("data get from search query :", data)
       setSearchResults(data)
       setShowDropdown(true)
     } catch (error) {
-      console.error('Error fetching search results:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleStockSelect = async (stock) => {
-    console.log("Selected Stock Title is :", stock.title)
-    console.log("Selected Stock is :", stock)
     setSearchTerm(stock.title)
     setShowDropdown(false)
+    setIsStockSelected(true)
 
     try {
       const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
       const response = await fetch(`http://localhost:8000/home/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`)
       const detailData = await response.json()
-      console.log("Fetch api data is :", detailData)
       setSelectedStock(detailData)
     } catch (error) {
-      console.error('Error fetching stock details:', error)
     }
   }
 
-  const addOrder = (orderDetails) => {
-    // Implement order logic here
+  const handleSearchInputChange = (e) => {
+    setSearchTerm(e.target.value)
+    setIsStockSelected(false)
+  }
+
+  const addOrder = async (orderDetails) => {
+    console.log("Order Created Data is :",orderDetails)
+
+    // try {
+    //   const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
+    //   const response = await fetch(`http://localhost:8000/home/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`,
+    //   )
+    //   const detailData = await response.json()
+    //   setSelectedStock(detailData)
+    // } catch (error) {
+    // }
+
+
+
     setShowBuyDialog(false)
     setShowSellDialog(false)
     toast({
       title: "Order Submitted",
-      description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.id} has been placed.`,
+      description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.name} has been placed.`,
       duration: 3000,
     })
   }
@@ -98,7 +111,7 @@ export default function StockSearchApp() {
             type="text"
             placeholder="Search for a stock..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchInputChange}
             className="pl-10 pr-4 py-2 w-full"
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -135,13 +148,17 @@ export default function StockSearchApp() {
                 variant="ghost"
                 size="icon"
                 className="absolute top-2 right-2"
-                onClick={() => setSelectedStock(null)}
+                onClick={() => {
+                  setSelectedStock(null)
+                  setSearchTerm('')
+                  setIsStockSelected(false)
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="col-span-1 md:col-span-2 lg:col-span-3">
-                  <h2 className="text-3xl font-bold mb-2">{selectedStock.name} ({selectedStock.id})</h2>
+                  <h2 className="text-3xl font-bold mb-2">{selectedStock.name}</h2>
                   <div className="flex items-center space-x-4">
                     <span className="text-2xl font-semibold">${selectedStock.ltp.toFixed(2)}</span>
                     <span className={`text-lg font-medium ${selectedStock.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -179,7 +196,7 @@ export default function StockSearchApp() {
                   <DialogContent className="bg-blue-50 max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="text-2xl font-bold text-blue-800">
-                        Buy {selectedStock.name} 
+                        Buy {selectedStock.name}
                       </DialogTitle>
                     </DialogHeader>
                     <TradeForm stock={selectedStock} type="buy" onSubmit={addOrder} />
@@ -195,7 +212,7 @@ export default function StockSearchApp() {
                   <DialogContent className="bg-red-50 max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="text-2xl font-bold text-red-800">
-                        Sell {selectedStock.name} 
+                        Sell {selectedStock.name}
                       </DialogTitle>
                     </DialogHeader>
                     <TradeForm stock={selectedStock} type="sell" onSubmit={addOrder} />
@@ -301,9 +318,7 @@ function TradeForm({ stock, type, onSubmit }) {
       <div className="sm:col-span-2">
         <Button type="submit" className={`w-full ${type === 'buy' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-red-500 hover:bg-red-600'} text-white`}>
           {type === 'buy' ? <ShoppingCart className="mr-2 h-4 w-4" /> : <Banknote className="mr-2 h-4 w-4" />}
-          {type === 
-
- 'buy' ? 'Buy' : 'Sell'} Stock
+          {type === 'buy' ? 'Buy' : 'Sell'} Stock
         </Button>
       </div>
     </form>
