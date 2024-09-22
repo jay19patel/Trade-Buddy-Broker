@@ -22,9 +22,7 @@ async def create_order(
                                                       Position.position_status == PositionStatus.PENDING
                                                     ))
     position_id = position.position_id if position else generate_unique_id("TRD")
-    
     order_margin = request.quantity * request.limit_price if request.order_types  == "LIMIT" else 0
-
     if not position:
         print("---------------------------------- New Postion Create ----------------------------------")
         position_data = {
@@ -48,9 +46,7 @@ async def create_order(
                 "sell_quantity": request.quantity,
                 "sell_margin": order_margin
             })
-        
         position = Position(**position_data)
-
     create_order = {
         "order_id" :generate_unique_id("ORD"),
         "account_id":account.account_id,
@@ -60,8 +56,7 @@ async def create_order(
         "order_types":request.order_types,
         "product_type":request.product_type,
         "stop_order_hit" : None
-    }   
-
+    }
     stop_order = None 
     if request.order_types == "LIMIT":
         if request.order_types == "LIMIT" and request.order_side == "Buy" and order_margin > account.balance:
@@ -84,20 +79,17 @@ async def create_order(
         else:
             raise HTTPException(status_code=400,detail="order side is not valied formate")
         
-
         if position.buy_quantity == position.sell_quantity and position.position_status == PositionStatus.PENDING:
             pnl = (position.sell_average - position.buy_average) * position.sell_quantity
             position.pnl_total += pnl
             position.position_status = PositionStatus.COMPLETED
-
-
+        
         create_order.update({
             "order_side":request.order_side,
             "trigger_price":request.trigger_price,
             "limit_price":request.limit_price,
             "quantity":request.quantity
         })
-
     elif request.order_types == "STOPLIMIT":
         stop_order = await db.scalar(select(Order).where(Order.position_id == position.position_id,
                                                         Order.order_types == OrderTypes.STOPLIMIT,
@@ -108,7 +100,6 @@ async def create_order(
             stop_order.stoploss_trigger_price = request.stoploss_trigger_price
             stop_order.target_limit_price = request.target_limit_price
             stop_order.target_trigger_price = request.target_trigger_price
-
         else:
             create_order.update({
                 "order_side":request.order_side,
@@ -117,7 +108,6 @@ async def create_order(
                 "target_limit_price":request.target_limit_price,
                 "target_trigger_price":request.target_trigger_price
             })
-
     else:
         raise HTTPException(status_code=400,detail="Order type is not correct formate")
     

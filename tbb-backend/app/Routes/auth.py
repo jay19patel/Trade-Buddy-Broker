@@ -34,7 +34,6 @@ async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_
         trailing_status=request.trailing_status,
         trailing_stoploss=request.trailing_stoploss,
         trailing_target=request.trailing_target,
-        payment_status=request.payment_status,
         description=request.description
         )
         

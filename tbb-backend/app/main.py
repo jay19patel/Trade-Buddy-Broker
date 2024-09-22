@@ -44,9 +44,9 @@ async def shutdown_system():
 
 @asynccontextmanager
 async def connectingTodb(app: FastAPI):
-    # await start_system()
+    await start_system()
     yield
-    # await shutdown_system()
+    await shutdown_system()
 
 
 app = FastAPI(title="Trade Buddy Order/Position Management System",lifespan=connectingTodb)
