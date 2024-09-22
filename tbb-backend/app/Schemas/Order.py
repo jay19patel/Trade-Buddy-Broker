@@ -1,8 +1,22 @@
 from pydantic import BaseModel
 from typing import Optional
-
+from app.Models.models import CreateBy,OrderSide
+class CreateNewOrder(BaseModel):
+    stock_symbol:str
+    order_side:OrderSide
+    stock_isin:Optional[str] = None
+    trigger_price:Optional[float] = None
+    limit_price: Optional[float] = None
+    stoploss_limit_price: float
+    stoploss_trigger_price: float
+    target_limit_price: float
+    target_trigger_price: float
+    quantity: Optional[int] = None
+    created_by: CreateBy
 
 class CreateOrder(BaseModel):
+    position_id:Optional[str] = None,
+
     stock_symbol: str
     stock_isin: str
 
@@ -21,7 +35,5 @@ class CreateOrder(BaseModel):
 
     target_limit_price: Optional[float] = None
     target_trigger_price: Optional[float] = None
-
-    note: Optional[str] = None
     created_by: Optional[str] = None 
 

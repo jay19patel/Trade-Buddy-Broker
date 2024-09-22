@@ -58,10 +58,10 @@ class PositionStatus(Enum):
 
 
 class OrderTypes(Enum):
-    # MARKET = "Market"
-    LIMIT = "Limit"
-    # STOPMARKET = "StopMarket"
-    STOPLIMIT = "StopLimit"
+    NewOrder = "New Order"
+    StopLossOrder = "Stoploss Order"
+    QtyAddOrder = "Quantity Add Order"
+    ExitOrder = "Exit Order"
 
 class CreateBy(Enum):
     MENUAL = "Menual"
@@ -96,7 +96,6 @@ class Position(Base):
     pnl_total = Column(Float, nullable=False, default=0)
     created_date = Column(DateTime, server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL)
-    note = Column(String,default="-")
 
     account = relationship('Account', back_populates='positions')
     orders = relationship('Order', back_populates='position')
@@ -110,7 +109,7 @@ class Order(Base):
     stock_symbol = Column(String, nullable=False)
     
     order_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
-    order_types = Column(sqlEnum(OrderTypes), nullable=False, default=OrderTypes.LIMIT)
+    order_types = Column(sqlEnum(OrderTypes), nullable=False, default=OrderTypes.NewOrder)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
 
     trigger_price = Column(Float)
@@ -125,7 +124,8 @@ class Order(Base):
     target_limit_price = Column(Float)
     target_trigger_price = Column(Float)
 
-    order_datetime = Column(DateTime(timezone=True), server_default=func.now())  
+    order_datetime = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL) 
 
     # Relationships
     account = relationship('Account', back_populates='orders')
