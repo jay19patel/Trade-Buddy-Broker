@@ -160,7 +160,7 @@ export default function StockSearchApp() {
                 <div className="col-span-1 md:col-span-2 lg:col-span-3">
                   <h2 className="text-3xl font-bold mb-2">{selectedStock.name}</h2>
                   <div className="flex items-center space-x-4">
-                    <span className="text-2xl font-semibold">${selectedStock.ltp.toFixed(2)}</span>
+                    <span className="text-2xl font-semibold"> ₹{selectedStock.ltp.toFixed(2)}</span>
                     <span className={`text-lg font-medium ${selectedStock.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {selectedStock.change >= 0 ? <TrendingUp className="inline mr-1" /> : <TrendingDown className="inline mr-1" />}
                       {selectedStock.change.toFixed(2)} ({selectedStock.changePercent.toFixed(2)}%)
@@ -299,22 +299,28 @@ function TradeForm({ stock, type, onSubmit }) {
         <label className="block text-sm font-medium text-gray-700">Trigger Price</label>
         <Input type="number" value={triggerPrice} onChange={(e) => setTriggerPrice(e.target.value)} step="0.01" />
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Stoploss Trigger Price</label>
-        <Input type="number" value={stoplossTriggerPrice} onChange={(e) => setStoplossTriggerPrice(e.target.value)} step="0.01" />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Target Trigger Price</label>
-        <Input type="number" value={targetTriggerPrice} onChange={(e) => setTargetTriggerPrice(e.target.value)} step="0.01" />
-      </div>
+      
       <div>
         <label className="block text-sm font-medium text-gray-700">Stoploss Limit Price</label>
         <Input type="number" value={stoplossLimitPrice} onChange={(e) => setStoplossLimitPrice(e.target.value)} step="0.01" />
       </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Stoploss Trigger Price</label>
+        <Input type="number" value={stoplossTriggerPrice} onChange={(e) => setStoplossTriggerPrice(e.target.value)} step="0.01" />
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700">Target Limit Price</label>
         <Input type="number" value={targetLimitPrice} onChange={(e) => setTargetLimitPrice(e.target.value)} step="0.01" />
       </div>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Target Trigger Price</label>
+        <Input type="number" value={targetTriggerPrice} onChange={(e) => setTargetTriggerPrice(e.target.value)} step="0.01" />
+      </div>
+      
+      
       <div className="sm:col-span-2">
         <Button type="submit" className={`w-full ${type === 'buy' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-red-500 hover:bg-red-600'} text-white`}>
           {type === 'buy' ? <ShoppingCart className="mr-2 h-4 w-4" /> : <Banknote className="mr-2 h-4 w-4" />}

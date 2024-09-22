@@ -27,6 +27,7 @@ async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_
         email_id=request.email_id,
         account_id=await generate_unique_custom_id(),
         password=generate_hash_password(password=request.password),
+        full_name=request.full_name,
         max_trad_per_day=request.max_trad_per_day,
         base_stoploss=request.base_stoploss,
         base_target=request.base_target,
@@ -72,6 +73,14 @@ async def login_account(response: Response,request: LoginAccount, db: AsyncSessi
         response.set_cookie(
                     key="access_token", 
                     value=access_token, 
+                    httponly=True, 
+                    samesite="Lax",
+                    secure=True,
+                    max_age=86400
+                )
+        response.set_cookie(
+                    key="full_name", 
+                    value=account.full_name, 
                     httponly=True, 
                     samesite="Lax",
                     secure=True,

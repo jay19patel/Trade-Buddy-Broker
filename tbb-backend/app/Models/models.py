@@ -9,6 +9,7 @@ class Account(Base):
     __tablename__ = 'accounts'
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(String, unique=True, nullable=False)
+    full_name =Column(String,nullable=False)
     balance = Column(Float, default=INITIAL_BALANCE)
     email_id = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
@@ -23,7 +24,6 @@ class Account(Base):
     trailing_status = Column(Boolean, default=True)
     trailing_stoploss = Column(Float, default=0.0)
     trailing_target = Column(Float, default=0.0)
-    payment_status = Column(String, default="Paper Trade")
     description = Column(String, default="")
     created_datetime = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -108,7 +108,7 @@ class Order(Base):
     position_id = Column(String, ForeignKey('positions.position_id'), nullable=False)
     stock_isin = Column(String, nullable=False)
     stock_symbol = Column(String, nullable=False)
-
+    
     order_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
     order_types = Column(sqlEnum(OrderTypes), nullable=False, default=OrderTypes.LIMIT)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
@@ -118,7 +118,6 @@ class Order(Base):
     quantity = Column(Integer)
 
     stop_order_hit = Column(Boolean, default=False)
-
 
     stoploss_limit_price = Column(Float)
     stoploss_trigger_price = Column(Float)

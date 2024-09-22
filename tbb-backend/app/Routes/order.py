@@ -103,7 +103,6 @@ async def create_order(
                                                         Order.order_types == OrderTypes.STOPLIMIT,
                                                         Order.stop_order_hit == False
                                                         ))
-        
         if stop_order:
             stop_order.stoploss_limit_price = request.stoploss_limit_price
             stop_order.stoploss_trigger_price = request.stoploss_trigger_price
