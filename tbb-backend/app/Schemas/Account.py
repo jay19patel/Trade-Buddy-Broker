@@ -2,7 +2,7 @@ from pydantic import BaseModel,EmailStr
 from typing import List
 
 class CreateAccount(BaseModel):
-    email_id:str
+    email_id:EmailStr
     password:str
     full_name:str
     max_trad_per_day:int =5
@@ -14,6 +14,6 @@ class CreateAccount(BaseModel):
     description:str
 
 class LoginAccount(BaseModel):
-    email_id:EmailStr
+    user_id:EmailStr | str
     password:str
 

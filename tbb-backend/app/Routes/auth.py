@@ -3,7 +3,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 import logging
 from datetime import timedelta
-from sqlalchemy import select
+from sqlalchemy import select,or_
 from sqlalchemy.exc import IntegrityError
 import os
 # App
@@ -52,7 +52,9 @@ async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_
 @auth_rout.post("/login_account")  
 async def login_account(response: Response,request: LoginAccount, db: AsyncSession = Depends(get_db)):
     try:
-        result = await db.execute(select(Account).where(Account.email_id == request.email_id))
+        result = await db.execute(select(Account).where(
+            or_(Account.email_id == request.user_id,Account.account_id==request.user_id)
+            ))
         account = result.scalars().first()
         if not account:
             raise HTTPException(detail="User not found", status_code=status.HTTP_404_NOT_FOUND)
@@ -107,6 +109,8 @@ from app.Core.security import decode_token
 @auth_rout.get("/verify_email/verification/{AccessToken}", status_code=status.HTTP_200_OK)
 async def verify_email_verification(AccessToken,db: AsyncSession = Depends(get_db)):
     token_data = decode_token(AccessToken)
+    if not token_data:
+        raise HTTPException(detail="Token not valid !",status_code=404)
     result = await db.execute(select(Account).where(Account.email_id == token_data["AccountEmail"]))
     account = result.scalars().first()
     if not account.email_verified:
@@ -120,6 +124,8 @@ async def verify_email_send_token(email,db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Account).where(Account.email_id == email))
         account = result.scalars().first()
+        if not account:
+            raise HTTPException(detail="email id is not valid",status_code=404)
         if not account.email_verified:
             access_token = create_access_token(payload={
                                                         "AccountId": account.account_id,

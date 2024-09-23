@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Depends,HTTPException
 from app.Database.base import get_db, AsyncSession
 from app.Models.models import Account
 from sqlalchemy import select
@@ -8,9 +8,11 @@ async def get_account_from_token(request: dict = Depends(AccessTokenBearer()),db
     try:
         result = await db.execute(select(Account).where(Account.account_id == request["AccountId"]))
         account = result.scalars().first()
+        if not account:
+            raise HTTPException(detail="Not Authenticated !",status_code=404)
         return account
     except:
-        return None
+        raise HTTPException(detail="Something went to wrong in Authentication !",status_code=404)
     
 import random
 import time
