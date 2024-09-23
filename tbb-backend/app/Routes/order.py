@@ -66,13 +66,15 @@ async def create_new_order(
         position_data.update({
             "buy_average": request.limit_price,
             "buy_quantity": request.quantity,
-            "buy_margin": order_margin
+            "buy_margin": order_margin,
+            "position_side" :OrderSide.BUY
         })
     elif request.order_side == OrderSide.SELL:
         position_data.update({
             "sell_average": request.limit_price,
             "sell_quantity": request.quantity,
-            "sell_margin": order_margin
+            "sell_margin": order_margin,
+            "position_side" :OrderSide.SELL
         })
 
     account.balance -= order_margin
@@ -337,6 +339,8 @@ async def get_open_order(
     data = await db.execute(query)
     return data.scalars().all()
 
+
+
 @order_route.get("/position/{position_id}/")
 async def get_single_position(
     position_id: str = None,
@@ -353,33 +357,44 @@ async def get_single_position(
     return data.scalars().all()
 
 
+from sqlalchemy.orm import joinedload
+from sqlalchemy import desc
+
 @order_route.get("/positions")
 async def get_positions(trade_today: bool = False,
                         account: Account = Depends(get_account_from_token),
                         db: AsyncSession = Depends(get_db)):
     try:
-        query = select(Position).where(Position.account_id == account.account_id)
+        query = select(Position).options(
+            joinedload(Position.orders)
+        ).where(Position.account_id == account.account_id)
+
         if trade_today:
             current_date = date.today()
             query = query.where(
                 func.date(Position.created_date) == current_date,
                 Position.position_status == PositionStatus.PENDING
             ).order_by(Position.created_date.desc())
-        print(query)
-        result = await db.execute(query)
-        data = result.scalars().all()
 
+        result = await db.execute(query)
+        positions = result.unique().scalars().all()
+        for position in positions:
+            position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
+
+        # Overview creation
         overview = {
-            "total_positions": len(data),
-            "open_positions": sum(1 for p in data if p.position_status ==PositionStatus.PENDING),
-            "closed_positions": sum(1 for p in data if p.position_status == PositionStatus.COMPLETED),
-            "pnl_realized": sum(p.pnl_total for p in data if p.position_status == PositionStatus.COMPLETED),
-            "pnl_unrealized": sum(p.pnl_total for p in data if p.position_status != PositionStatus.COMPLETED),
-            "pnl_total": sum(p.pnl_total for p in data)
+            "total_positions": len(positions),
+            "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
+            "closed_positions": sum(1 for p in positions if p.position_status == PositionStatus.COMPLETED),
+            "pnl_realized": sum(p.pnl_total for p in positions if p.position_status == PositionStatus.COMPLETED),
+            "pnl_unrealized": sum(p.pnl_total for p in positions if p.position_status != PositionStatus.COMPLETED),
+            "pnl_total": sum(p.pnl_total for p in positions)
         }
-        
-        return {"data": data, "overview": overview}
+
+        return {"data": positions, "overview": overview}
+
     except Exception as e:
         print(f"Error: {e}")
         return {"error": "Failed to retrieve data"}
+
 

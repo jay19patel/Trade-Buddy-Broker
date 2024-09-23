@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/auth/login_account', {
-        email_id: email,
+        user_id: email,
         password: password
       },
       {

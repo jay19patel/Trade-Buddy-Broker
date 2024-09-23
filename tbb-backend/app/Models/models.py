@@ -83,6 +83,7 @@ class Position(Base):
     stock_isin = Column(String, nullable=False) 
 
     position_status = Column(sqlEnum(PositionStatus), nullable=False, default=PositionStatus.PENDING)
+    position_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
 
     trailing_activated = Column(Boolean, default=True)

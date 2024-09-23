@@ -80,12 +80,30 @@ export default function StockSearchApp() {
   }
 
   const addOrder = async (orderDetails) => {
-    console.log("Order Created Data is :",orderDetails)
-
+    const bodydata = {
+      stock_symbol: orderDetails.stock.name,
+      order_side: orderDetails.type,
+      stock_isin: orderDetails.stock.id,
+      trigger_price: orderDetails.triggerPrice,
+      limit_price: orderDetails.limitPrice,
+      stoploss_limit_price: orderDetails.stoplossLimitPrice,
+      stoploss_trigger_price: orderDetails.stoplossTriggerPrice,
+      target_limit_price: orderDetails.targetLimitPrice,
+      target_trigger_price: orderDetails.targetTriggerPrice,
+      quantity: orderDetails.quantity,
+      created_by : "Menual"
+    };
+    console.log(bodydata)
     // try {
     //   const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
-    //   const response = await fetch(`http://localhost:8000/home/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`,
-    //   )
+    //   const response = await fetch('http://127.0.0.1:8000/order/new_order/', {
+    //     method: 'POST',
+    //     body: JSON.stringify({ trade_today: false }),
+    //     headers: {
+    //       'accept': 'application/json',
+    //       ...(token && { 'Authorization': `Bearer ${token}` }), // Include the Authorization header if token exists
+    //     },
+    //   });
     //   const detailData = await response.json()
     //   setSelectedStock(detailData)
     // } catch (error) {
@@ -199,7 +217,7 @@ export default function StockSearchApp() {
                         Buy {selectedStock.name}
                       </DialogTitle>
                     </DialogHeader>
-                    <TradeForm stock={selectedStock} type="buy" onSubmit={addOrder} />
+                    <TradeForm stock={selectedStock} type="BUY" onSubmit={addOrder} />
                   </DialogContent>
                 </Dialog>
                 <Dialog open={showSellDialog} onOpenChange={setShowSellDialog}>
@@ -215,7 +233,7 @@ export default function StockSearchApp() {
                         Sell {selectedStock.name}
                       </DialogTitle>
                     </DialogHeader>
-                    <TradeForm stock={selectedStock} type="sell" onSubmit={addOrder} />
+                    <TradeForm stock={selectedStock} type="SELL" onSubmit={addOrder} />
                   </DialogContent>
                 </Dialog>
               </div>
