@@ -1,5 +1,5 @@
 "use client"
-
+import Cookies from 'js-cookie'; 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/auth/login_account', {
+      const response = await axios.post('http://127.0.0.1:8080/auth/login_account', {
         user_id: email,
         password: password
       },
@@ -31,6 +31,9 @@ export default function LoginPage() {
       }
     
     );
+    Cookies.set("access_token",response.data.payload.access_token)
+    Cookies.set("full_name",response.data.payload.full_name)
+      router.push("/")
       toast({
         title: "Authentication Success",
         description: `Sucessfully Login`,
@@ -44,7 +47,6 @@ export default function LoginPage() {
       })
     }
     finally{
-      router.push("/")
     }
 
 

@@ -9,25 +9,8 @@ import {
 } from "@/components/ui/card";
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon } from "lucide-react";
 
-const DashbordCount = () => {
-  const DashbordConts = [
-    {
-      title: "Total Counts",
-      counts: 100,
-    },
-    {
-      title: "Total Counts",
-      counts: 100,
-    },
-    {
-      title: "Total Counts",
-      counts: -10,
-    },
-    {
-      title: "Total Counts",
-      counts: 100,
-    },
-  ];
+const DashbordCount = ({DashbordConts}) => {
+  
   return (
     <div>
       <div className="grid grid-cols-2 gap-5 md:grid-cols-4 py-5">
@@ -38,7 +21,7 @@ const DashbordCount = () => {
           >
             <CardContent className="p-6 flex flex-col items-center justify-center gap-4">
               <div className="flex flex-col items-center">
-                <h2 className="text-lg  text-[#747474]">
+                <h2 className="text-lg  text-[#747474] font-semibold">
                   {dashbordcard.title}
                 </h2>
                 <span

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status,Request
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 import logging
@@ -17,7 +17,8 @@ from app.Core.utility import get_account_from_token
 
 # Logging
 # logging.basicConfig(filename=f"{os.getcwd()}/Records/StrategyManager.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+from fastapi.templating import Jinja2Templates
+templates = Jinja2Templates(directory="app/templates")
 auth_rout = APIRouter()
 
 @auth_rout.post("/create_account")
@@ -40,6 +41,13 @@ async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_
         db.add(account)
         await db.commit()
         await db.refresh(account)
+        access_token = create_access_token(payload={
+                                                        "AccountId": account.account_id,
+                                                        "AccountEmail": account.email_id,
+                                                        "AccountRole": account.role
+                                                        }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
+                                                    
+        await email_send_access_token([account.email_id],access_token)
         return {
             "status": "success",
             "message": "Registration successful",
@@ -71,28 +79,29 @@ async def login_account(response: Response,request: LoginAccount, db: AsyncSessi
             "AccountRole": account.role
         }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
 
-        response.set_cookie(
-                    key="access_token", 
-                    value=access_token, 
-                    httponly=True, 
-                    samesite="Lax",
-                    secure=True,
-                    max_age=86400
-                )
-        response.set_cookie(
-                    key="full_name", 
-                    value=account.full_name, 
-                    httponly=True, 
-                    samesite="Lax",
-                    secure=True,
-                    max_age=86400
-                )
+        # response.set_cookie(
+        #             key="access_token", 
+        #             value=access_token, 
+        #             httponly=True, 
+        #             samesite="Lax",
+        #             secure=True,
+        #             max_age=86400
+        #         )
+        # response.set_cookie(
+        #             key="full_name", 
+        #             value=account.full_name, 
+        #             httponly=True, 
+        #             samesite="Lax",
+        #             secure=True,
+        #             max_age=86400
+        #         )
         return {
             "message": "Login successful",
             "payload": {
                 "account": account.account_id,
                 "role": account.role,
                 "access_token": access_token,
+                "full_name":account.full_name,
             }
         }
     except Exception as e:
@@ -107,17 +116,19 @@ async def private_page(account:Account = Depends(get_account_from_token), db: As
 
 from app.Core.security import decode_token
 @auth_rout.get("/verify_email/verification/{AccessToken}", status_code=status.HTTP_200_OK)
-async def verify_email_verification(AccessToken,db: AsyncSession = Depends(get_db)):
+async def verify_email_verification(AccessToken,
+                                    request: Request,
+                                    db: AsyncSession = Depends(get_db)):
     token_data = decode_token(AccessToken)
     if not token_data:
-        raise HTTPException(detail="Token not valid !",status_code=404)
+        return templates.TemplateResponse("verify_faild.html", {"request": request})
     result = await db.execute(select(Account).where(Account.email_id == token_data["AccountEmail"]))
     account = result.scalars().first()
     if not account.email_verified:
         account.email_verified = True
-        await db.commit()
-        return {"msg": "Email verified"}
-    return {"msg":"Alredy Verified this email"}
+        await db.commit()   
+        return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
+    return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
 
 @auth_rout.get("/verify_email/send_token/{email}", status_code=status.HTTP_200_OK)
 async def verify_email_send_token(email,db: AsyncSession = Depends(get_db)):
@@ -133,8 +144,9 @@ async def verify_email_send_token(email,db: AsyncSession = Depends(get_db)):
                                                         "AccountRole": account.role
                                                         }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
                                                     
-            # await email_send_access_token([email.email],access_token)
-            return {"message": "Email sent successfully", "payload": {"access_token": access_token}}
+            await email_send_access_token([email.email],access_token)
+            # return {"message": "Email sent successfully", "payload": {"access_token": access_token}}
+            return {"message": "Email sent successfully"}
         return {"message": "Email Alredy Verified"}
     except Exception as e:
         return e

@@ -21,7 +21,7 @@ if exist requirements.txt (
 
 :: Run FastAPI application using uvicorn
 echo Starting FastAPI application...
-fastapi dev run.py
+python run.py
 
 :: Keep the window open to see any output
 pause

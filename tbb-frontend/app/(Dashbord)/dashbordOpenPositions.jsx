@@ -1,5 +1,4 @@
 'use client'
-// import Cookies from 'js-cookie'; 
 import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,50 +8,12 @@ import { ChevronLeft, ChevronRight, BookOpen, X } from "lucide-react"
 import { useToast } from '@/hooks/use-toast'
 
 
-export default function TradingTable() {
-  const [trades, setTrades] = useState([])
+export default function TradingTable({isLoading,trades}) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedTrade, setSelectedTrade] = useState(null)
   const [showOrderDialog, setShowOrderDialog] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
   const tradesPerPage = 5
-
-  const fetchTrades = async () => {
-    setIsLoading(true)
-    try {
-
-      const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBY2NvdW50SWQiOiJLSDJZRCIsIkFjY291bnRFbWFpbCI6ImpheUBnbWFpbC5jb20iLCJBY2NvdW50Um9sZSI6IlVzZXIiLCJleHAiOjIwMzgxNjk5MzQsImp0aSI6IjJiZmEzOWEyLTA0MzMtNDRjYS1hNzlkLTdlM2IyY2ViZDdmNyJ9.78GtirKl3kyHqXmEk_Ntt6FILGUnVVaogbZydD26nRY";
-      console.log("Cooookies is :",token)
-
-      const response = await fetch('http://127.0.0.1:8000/order/positions?trade_today=false', {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch trades')
-      }
-      const data = await response.json()
-      console.log("Positions Data is :",data.data)
-      setTrades(data.data)
-    } catch (error) {
-      console.error('Error fetching trades:', error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch trades. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchTrades()
-  }, [])
 
   const indexOfLastTrade = currentPage * tradesPerPage
   const indexOfFirstTrade = indexOfLastTrade - tradesPerPage
@@ -67,13 +28,12 @@ export default function TradingTable() {
 
   const handleExit = async (tradeId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/order/create_exit_order/`, {
+      const response = await fetch(`http://127.0.0.1:8080/order/create_exit_order/`, {
         method: 'POST',
       })
       if (!response.ok) {
         throw new Error('Failed to exit trade')
       }
-      await fetchTrades() // Refetch trades after successful exit
       toast({
         title: "Success",
         description: "Trade exited successfully.",
@@ -96,6 +56,9 @@ export default function TradingTable() {
         return 'bg-green-100'
       case 'New Order':
         return 'bg-blue-100'
+      case 'Stoploss Order':
+        return 'bg-yellow-100'
+
       default:
         return ''
     }
@@ -104,7 +67,6 @@ export default function TradingTable() {
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>
   }
-
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 lg:p-3">
       <Card className="shadow-lg bg-white">
@@ -117,37 +79,45 @@ export default function TradingTable() {
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Position ID</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Symbol</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Side</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Buy/Sell Price</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Date</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Price</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Stoploss</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Target</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Margin</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Date</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentTrades.map((trade) => (
                   <TableRow key={trade.position_id} className="">
-                    <TableCell className="py-2 px-4 border border-gray-200 font-medium">{trade.position_id}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{trade.stock_symbol}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">
-                      <span className="px-2 py-1 rounded-full bg-green-500 text-white font-semibold">
-                        Buy
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.position_id}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.stock_symbol}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
+                      <span className="px-2 py-1 rounded-full bg-green-500 text-white">
+                      {trade.position_side}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-bold">
-                      ${trade.position_status === 'BUY' ? trade.buy_average : 
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
+                    ₹{trade.position_status === 'BUY' ? trade.buy_average : 
                         trade.position_status === 'SELL' ? trade.sell_average : 
                         trade.current_price}
                     </TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{new Date(trade.created_date).toLocaleString()}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
                       {trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity}
                     </TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">
-                      ${trade.position_status === 'BUY' ? trade.buy_margin : 
+
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-red-500">₹{trade.stoploss_limit}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-green-500">₹{trade.target_limit}</TableCell>
+
+
+
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
+                    ₹{trade.position_status === 'BUY' ? trade.buy_margin : 
                         trade.position_status === 'SELL' ? trade.sell_margin : 
                         trade.buy_margin || trade.sell_margin}
                     </TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{new Date(trade.created_date).toLocaleString()}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200">
                       <div className="flex space-x-2">
                         <Button 
@@ -210,31 +180,33 @@ export default function TradingTable() {
       </Card>
 
       <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
-        <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[80vh] overflow-y-auto p-4 sm:p-6 bg-white">
+        <DialogContent className="sm:max-w-[1200px] w-[100vw] max-h-[100vh] overflow-y-auto p-4 sm:p-6 bg-white">
           <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-semibold">Orders for {selectedTrade?.stock_symbol}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">Orders for {selectedTrade?.stock_symbol} [ {selectedTrade?.position_id} ]</DialogTitle>
           </DialogHeader>
           <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <Table className="border-collapse border border-gray-200">
+            <Table className="border-collapse border border-gray-400">
               <TableHeader>
-                <TableRow className="bg-gray-100">
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Order ID</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Order Type</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Side</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Price</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Date</TableHead>
+                <TableRow className="bg-gray-200">
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Order ID</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Order Type</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Side</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Quantity</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Price</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedTrade?.orders.map((order) => (
                   <TableRow key={order.order_id} className={`${getOrderTypeColor(order.order_types)}`}>
-                    <TableCell className="py-2 px-4 border border-gray-200">{order.order_id}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{order.order_types}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{order.order_side}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">${order.limit_price || 'N/A'}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200">{new Date(order.order_datetime).toLocaleString()}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_id}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_types}</TableCell>
+                    <TableCell className={`py-2 px-4 border border-gray-300 font-semibold ${order.order_side === 'BUY' ? 'text-green-600' : 'text-red-600'}`}>
+                    {order.order_side}
+                    </TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.limit_price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

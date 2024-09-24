@@ -1,5 +1,5 @@
 'use client'
-
+import Cookies from 'js-cookie'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -70,7 +70,7 @@ const Footer = () => (
 export default function NavigatoionBarLayout({ children }) {
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState('Dashboard')
-
+  // const full_name = Cookies.get("full_name")
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="hidden md:block w-64 flex-shrink-0">
@@ -90,15 +90,15 @@ export default function NavigatoionBarLayout({ children }) {
             <h1 className="text-xl font-bold">{currentPage}</h1>
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger>Hey Jay Patel</DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuTrigger>Hey Trade Buddy</DropdownMenuTrigger>
+            {/* <DropdownMenuContent className="bg-white">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/reset_password')}>Reset Password</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="bg-red-100" onClick={() => router.push('/logout')}>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
+            </DropdownMenuContent> */}
           </DropdownMenu>
         </header>
         <main className="flex-1 overflow-auto p-6">

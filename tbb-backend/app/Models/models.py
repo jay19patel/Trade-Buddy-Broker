@@ -96,6 +96,8 @@ class Position(Base):
     sell_margin = Column(Float, nullable=False, default=0.0)
     sell_quantity = Column(Integer, nullable=False, default=0)
     pnl_total = Column(Float, nullable=False, default=0)
+    target_limit = Column(Float, nullable=False)
+    stoploss_limit = Column(Float, nullable=False)
     created_date = Column(DateTime, server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL)
 

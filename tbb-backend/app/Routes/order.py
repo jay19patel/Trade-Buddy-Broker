@@ -36,7 +36,9 @@ async def create_new_order(
         "stock_symbol": request.stock_symbol,
         "stock_isin": request.stock_isin,
         "current_price": request.limit_price,
-        "created_by": request.created_by
+        "created_by": request.created_by,
+        "stoploss_limit":request.stoploss_limit_price,
+        "target_limit":request.target_limit_price
     }
 
     create_order = {
@@ -127,7 +129,8 @@ async def create_stoploss_order(
         Order.stop_order_activate == True
     ))
 
-    print("stop_order:", stop_order)
+    position.target_limit = request.target_limit_price
+    position.stoploss_limit = request.stoploss_limit_price
 
     if stop_order:
         stop_order.stop_order_activate = False
@@ -150,11 +153,12 @@ async def create_stoploss_order(
     order = Order(**create_stoploss_order)
 
     # Add new stop-loss order to session
-    db.add(order)
+    db.add_all([order,position])
     if stop_order:
         db.add(stop_order)    
     await db.commit()
     await db.refresh(order)
+    await db.refresh(position)
     if stop_order:
         await db.refresh(stop_order)
 
@@ -361,26 +365,20 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import desc
 
 @order_route.get("/positions")
-async def get_positions(trade_today: bool = False,
-                        account: Account = Depends(get_account_from_token),
+async def get_positions(account: Account = Depends(get_account_from_token),
                         db: AsyncSession = Depends(get_db)):
     try:
-        query = select(Position).options(
-            joinedload(Position.orders)
-        ).where(Position.account_id == account.account_id)
+        
+        
 
-        if trade_today:
-            current_date = date.today()
-            query = query.where(
-                func.date(Position.created_date) == current_date,
-                Position.position_status == PositionStatus.PENDING
-            ).order_by(Position.created_date.desc())
-
+        query = select(Position).options(joinedload(Position.orders)).where(Position.account_id == account.account_id,
+                or_(Position.position_status == PositionStatus.PENDING,
+                    func.date(Position.created_date) == date.today())
+                ).order_by(Position.created_date.desc())
         result = await db.execute(query)
         positions = result.unique().scalars().all()
         for position in positions:
             position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
-
         # Overview creation
         overview = {
             "total_positions": len(positions),
@@ -388,7 +386,9 @@ async def get_positions(trade_today: bool = False,
             "closed_positions": sum(1 for p in positions if p.position_status == PositionStatus.COMPLETED),
             "pnl_realized": sum(p.pnl_total for p in positions if p.position_status == PositionStatus.COMPLETED),
             "pnl_unrealized": sum(p.pnl_total for p in positions if p.position_status != PositionStatus.COMPLETED),
-            "pnl_total": sum(p.pnl_total for p in positions)
+            "pnl_total": sum(p.pnl_total for p in positions),
+            "positive_pnl_count": sum(1 for p in positions if p.pnl_total > 0),
+            "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0)
         }
 
         return {"data": positions, "overview": overview}
