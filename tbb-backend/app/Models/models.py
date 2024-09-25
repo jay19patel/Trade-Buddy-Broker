@@ -95,8 +95,8 @@ class Position(Base):
     sell_margin = Column(Float, nullable=False, default=0.0)
     sell_quantity = Column(Integer, nullable=False, default=0)
     pnl_total = Column(Float, nullable=False, default=0)
-    target_limit = Column(Float, nullable=False)
-    stoploss_limit = Column(Float, nullable=False)
+    target_price = Column(Float, nullable=False)
+    stoploss_price = Column(Float, nullable=False)
     created_date = Column(DateTime, server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL)
 
@@ -115,18 +115,13 @@ class Order(Base):
     order_types = Column(sqlEnum(OrderTypes), nullable=False, default=OrderTypes.NewOrder)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
 
-    trigger_price = Column(Float)
-    limit_price =Column(Float)
+    price = Column(Float)
     quantity = Column(Integer)
 
     stop_order_hit = Column(Boolean, default=False)
     stop_order_activate = Column(Boolean, default=False)
-    stoploss_limit_price = Column(Float)
-    stoploss_trigger_price = Column(Float)
-
-    target_limit_price = Column(Float)
-    target_trigger_price = Column(Float)
-
+    stoploss_price = Column(Float)
+    target_price = Column(Float)
     order_datetime = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL) 
 

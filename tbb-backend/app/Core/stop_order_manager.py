@@ -30,7 +30,7 @@ async def create_exit_order(db, order, price):
         "stop_order_hit": True,
         "order_side": OrderSide.SELL if order.order_side == OrderSide.BUY else OrderSide.BUY,
         "trigger_price": price.price,
-        "limit_price": price.price,
+        "price": price.price,
         "quantity": order.quantity
     }
     new_order = Order(**new_order_data)

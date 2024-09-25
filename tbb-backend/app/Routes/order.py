@@ -27,7 +27,7 @@ async def create_new_order(
     - Deducts order margin from the account balance.
     - Position and order are linked using `position_id`.
     """
-    order_margin = request.quantity * request.limit_price
+    order_margin = request.quantity * request.price
     position_id = generate_unique_id("TRD")
 
     position_data = {
@@ -35,10 +35,10 @@ async def create_new_order(
         "account_id": account.account_id,
         "stock_symbol": request.stock_symbol,
         "stock_isin": request.stock_isin,
-        "current_price": request.limit_price,
+        "current_price": request.price,
         "created_by": request.created_by,
-        "stoploss_limit":request.stoploss_limit_price,
-        "target_limit":request.target_limit_price
+        "stoploss_price":request.stoploss_price,
+        "target_price":request.target_price
     }
 
     create_order = {
@@ -52,12 +52,9 @@ async def create_new_order(
         "product_type": "CNC",
         "stop_order_hit": None,
         "stop_order_activate":True,
-        "trigger_price": request.trigger_price,
-        "limit_price": request.limit_price,
-        "stoploss_limit_price": request.stoploss_limit_price,
-        "stoploss_trigger_price": request.stoploss_trigger_price,
-        "target_limit_price": request.target_limit_price,
-        "target_trigger_price": request.target_trigger_price,
+        "price": request.price,
+        "stoploss_price": request.stoploss_price,
+        "target_price": request.target_price,
         "quantity": request.quantity,
         "created_by": request.created_by
     }
@@ -66,14 +63,14 @@ async def create_new_order(
 
     if request.order_side == OrderSide.BUY:
         position_data.update({
-            "buy_average": request.limit_price,
+            "buy_average": request.price,
             "buy_quantity": request.quantity,
             "buy_margin": order_margin,
             "position_side" :OrderSide.BUY
         })
     elif request.order_side == OrderSide.SELL:
         position_data.update({
-            "sell_average": request.limit_price,
+            "sell_average": request.price,
             "sell_quantity": request.quantity,
             "sell_margin": order_margin,
             "position_side" :OrderSide.SELL
@@ -88,7 +85,7 @@ async def create_new_order(
     await db.refresh(position)
     await db.refresh(account)
 
-    msg = f"New position created for {position_id}"
+    msg = f"New position created for {position_id} with {request.quantity} Quantity"
     return {
         "status": "success",
         "message": msg,
@@ -129,8 +126,8 @@ async def create_stoploss_order(
         Order.stop_order_activate == True
     ))
 
-    position.target_limit = request.target_limit_price
-    position.stoploss_limit = request.stoploss_limit_price
+    position.target_price = request.target_price
+    position.stoploss_price = request.stoploss_price
 
     if stop_order:
         stop_order.stop_order_activate = False
@@ -143,10 +140,8 @@ async def create_stoploss_order(
         "stock_symbol": position.stock_symbol,
         "order_types": OrderTypes.StopLossOrder,
         "product_type": position.product_type,
-        "stoploss_limit_price": request.stoploss_limit_price,
-        "stoploss_trigger_price": request.stoploss_trigger_price,
-        "target_limit_price": request.target_limit_price,
-        "target_trigger_price": request.target_trigger_price,
+        "stoploss_price": request.stoploss_price,
+        "target_price": request.target_price,
         "quantity": request.quantity,
         "created_by": request.created_by
     }
@@ -191,20 +186,20 @@ async def add_quantity_in_position(
             Position.position_id == request.position_id,
             Position.position_status == PositionStatus.PENDING
         ))
-    order_margin = request.quantity * request.limit_price
+    order_margin = request.quantity * request.price
     
     if request.order_side == OrderSide.BUY:
             position.buy_quantity += request.quantity
             position.buy_margin += order_margin
             position.buy_average = (
-                (position.buy_average * (position.buy_quantity - request.quantity) + request.limit_price * request.quantity) /
+                (position.buy_average * (position.buy_quantity - request.quantity) + request.price * request.quantity) /
                 position.buy_quantity
             )
     elif request.order_side == OrderSide.SELL:
             position.sell_quantity += request.quantity
             position.sell_margin += order_margin
             position.sell_average = (
-                (position.sell_average * (position.sell_quantity - request.quantity) + request.limit_price * request.quantity) /
+                (position.sell_average * (position.sell_quantity - request.quantity) + request.price * request.quantity) /
                 position.sell_quantity
             )
     qty_add_order = {
@@ -217,7 +212,7 @@ async def add_quantity_in_position(
             "order_side": request.order_side,
             "product_type": "CNC",
             "stop_order_hit": None,
-            "limit_price": request.limit_price,
+            "price": request.price,
             "quantity": request.quantity,
             "created_by": request.created_by
         }
@@ -263,24 +258,24 @@ async def create_exit_order(
             "order_side":  OrderSide.SELL if request.order_side else OrderSide.BUY,
             "product_type": position.product_type,
             "stop_order_hit": True,
-            "limit_price": request.limit_price,
+            "price": request.price,
             "quantity": request.quantity,
             "created_by": request.created_by
         }
-    order_margin = request.quantity * request.limit_price
+    order_margin = request.quantity * request.price
     
     if request.order_side == OrderSide.BUY:
             position.sell_quantity += request.quantity
             position.sell_margin += order_margin
             position.sell_average = (
-                (position.sell_average * (position.sell_quantity - request.quantity) + request.limit_price * request.quantity) /
+                (position.sell_average * (position.sell_quantity - request.quantity) + request.price * request.quantity) /
                 position.sell_quantity
             )
     elif request.order_side == OrderSide.SELL:
         position.buy_quantity += request.quantity
         position.buy_margin += order_margin
         position.buy_average = (
-            (position.buy_average * (position.buy_quantity - request.quantity) + request.limit_price * request.quantity) /
+            (position.buy_average * (position.buy_quantity - request.quantity) + request.price * request.quantity) /
             position.buy_quantity
         )
 
@@ -292,6 +287,7 @@ async def create_exit_order(
     else:
         msg = "Exit order executed"
 
+    account.balance += order_margin
     order = Order(**sell_order)
     db.add_all([position, order])
     await db.commit()
@@ -308,7 +304,6 @@ async def create_exit_order(
         }
     }
     
-
 @order_route.get("/all_orders")
 async def get_all_order(
             account: Account = Depends(get_account_from_token),
@@ -380,15 +375,26 @@ async def get_positions(account: Account = Depends(get_account_from_token),
         for position in positions:
             position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
         # Overview creation
+
+
+        total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id)
+)
+        # return data.scalars().all()
+
+
         overview = {
             "total_positions": len(positions),
             "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
             "closed_positions": sum(1 for p in positions if p.position_status == PositionStatus.COMPLETED),
-            "pnl_realized": sum(p.pnl_total for p in positions if p.position_status == PositionStatus.COMPLETED),
-            "pnl_unrealized": sum(p.pnl_total for p in positions if p.position_status != PositionStatus.COMPLETED),
-            "pnl_total": sum(p.pnl_total for p in positions),
+            # "pnl_realized": sum(p.pnl_total for p in positions if p.position_status == PositionStatus.COMPLETED),
+            # "pnl_unrealized": sum(p.pnl_total for p in positions if p.position_status != PositionStatus.COMPLETED),
+            "pnl_todays": sum(p.pnl_total for p in positions),
             "positive_pnl_count": sum(1 for p in positions if p.pnl_total > 0),
-            "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0)
+            "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
+            "balance":account.balance,
+            "pnl_total":total_pnl_result.scalar()
+
+
         }
 
         return {"data": positions, "overview": overview}

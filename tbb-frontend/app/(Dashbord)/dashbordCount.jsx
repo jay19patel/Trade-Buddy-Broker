@@ -13,7 +13,7 @@ const DashbordCount = ({DashbordConts}) => {
   
   return (
     <div>
-      <div className="grid grid-cols-2 gap-5 md:grid-cols-4 py-5">
+      <div className="grid grid-cols-2 gap-5 md:grid-cols-3 py-5">
         {DashbordConts.map((dashbordcard, index) => (
           <Card
             className="w-full max-w-sm bg-white border-[#d0d0d0] shadow-lg"
@@ -28,14 +28,14 @@ const DashbordCount = ({DashbordConts}) => {
                   className={`text-xl font-bold flex justify-center items-center gap-2 ${
                     dashbordcard.counts > 0
                       ? "text-green-600"
-                      : dashbordcard.counts < 0
+                      : dashbordcard.counts <= 0
                       ? "text-red-600"
                       : "text-blue-900"
                   }`}
                 >
                   {dashbordcard.counts > 0 ? (
                     <ArrowUpIcon className="h-4 w-4 text-green-600" />
-                  ) : dashbordcard.counts < 0 ? (
+                  ) : dashbordcard.counts <= 0 ? (
                     <ArrowDownIcon className="h-4 w-4 text-red-600" />
                   ) : null}
                   {dashbordcard.counts}

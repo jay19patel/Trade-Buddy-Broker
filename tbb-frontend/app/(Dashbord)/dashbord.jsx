@@ -26,12 +26,16 @@ export default function Dashboard() {
       title: "Positive/Negative",
       counts: 0,
     },
-    // {
-    //   title: "P&L Realized",
-    //   counts: 0,
-    // },
+    {
+      title: "Today's P&N",
+      counts: 0,
+    },
     {
       title: "Total P&N",
+      counts: 0,
+    },
+    {
+      title: "Balance",
       counts: 0,
     },
     
@@ -72,13 +76,17 @@ export default function Dashboard() {
           title: "Positive/Negative",
           counts: `${data.overview.positive_pnl_count}/${data.overview.negative_pnl_count}`,
         },
-        // {
-        //   title: "P&L Realized",
-        //   counts: data.overview.pnl_realized,
-        // },
+        {
+          title: " Today's P&N",
+          counts: data.overview.pnl_todays,
+        },
         {
           title: "Total P&N",
           counts: data.overview.pnl_total,
+        },
+        {
+          title: "Balance",
+          counts: data.overview.balance,
         },
         
       ];

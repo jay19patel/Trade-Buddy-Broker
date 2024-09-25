@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, BookOpen, X } from "lucide-react"
 import { useToast } from '@/hooks/use-toast'
-
+import Cookies from 'js-cookie'
 
 export default function TradingTable({isLoading,trades}) {
   const [currentPage, setCurrentPage] = useState(1)
@@ -26,26 +26,54 @@ export default function TradingTable({isLoading,trades}) {
     setShowOrderDialog(true)
   }
 
-  const handleExit = async (tradeId) => {
+  const handleExit = async (trade) => {
     try {
+
+      const sendBody = {
+          "position_id": trade.position_id,
+          "order_side": trade.position_side,
+          "quantity": trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity,
+          "price": trade.position_status === 'BUY' ? trade.buy_average : 
+          trade.position_status === 'SELL' ? trade.sell_average : 
+          trade.current_price,
+          "created_by": "Menual"
+      }
+      const token = Cookies.get("access_token");
       const response = await fetch(`http://127.0.0.1:8080/order/create_exit_order/`, {
         method: 'POST',
+        body:JSON.stringify(sendBody),
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' // Ensure Content-Type is set
+        },
+
       })
-      if (!response.ok) {
-        throw new Error('Failed to exit trade')
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: "Order Created Successfully",
+          description: data.message,
+          duration: 3000,
+        });
+      } else {
+        const errorData = await response.json(); // Attempt to get error message from server
+        console.error("Error creating order:", errorData);
+        toast({
+          title: "Order Creation Failed",
+          description: errorData.detail || "An error occurred while exit the order.",
+          duration: 3000,
+        });
       }
-      toast({
-        title: "Success",
-        description: "Trade exited successfully.",
-      })
+    
     } catch (error) {
-      console.error('Error exiting trade:', error)
+      console.error("Fetch error:", error);
       toast({
-        title: "Error",
-        description: "Failed to exit trade. Please try again.",
-        variant: "destructive",
-      })
-    }
+        title: "Request Error",
+        description: "An error occurred while sending the exit request.",
+        duration: 3000,
+      });
+    } 
   }
 
   const getOrderTypeColor = (orderType) => {
@@ -94,7 +122,7 @@ export default function TradingTable({isLoading,trades}) {
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.position_id}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.stock_symbol}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
-                      <span className="px-2 py-1 rounded-full bg-green-500 text-white">
+                      <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs">
                       {trade.position_side}
                       </span>
                     </TableCell>
@@ -107,8 +135,8 @@ export default function TradingTable({isLoading,trades}) {
                       {trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity}
                     </TableCell>
 
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-red-500">₹{trade.stoploss_limit}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-green-500">₹{trade.target_limit}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-red-500">₹{trade.stoploss_price}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-green-500">₹{trade.target_price}</TableCell>
 
 
 
@@ -131,7 +159,7 @@ export default function TradingTable({isLoading,trades}) {
                         <Button 
                           size="sm" 
                           variant="destructive"
-                          onClick={() => handleExit(trade.position_id)}
+                          onClick={() => handleExit(trade)}
                         >
                           <X className="h-4 w-4 mr-2" />
                           Exit
@@ -205,7 +233,7 @@ export default function TradingTable({isLoading,trades}) {
                     {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.limit_price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}

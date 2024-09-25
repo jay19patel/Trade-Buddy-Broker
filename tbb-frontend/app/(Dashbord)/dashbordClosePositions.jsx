@@ -92,7 +92,7 @@ export default function TradingTable({isLoading,trades}) {
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.position_id}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.stock_symbol}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
-                      <span className="px-2 py-1 rounded-full bg-green-500 text-white">
+                      <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs">
                       {trade.position_side}
                       </span>
                     </TableCell>
@@ -181,7 +181,7 @@ export default function TradingTable({isLoading,trades}) {
                     {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.limit_price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}

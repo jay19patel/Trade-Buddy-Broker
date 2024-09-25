@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import Cookies from 'js-cookie'
+
 
 export default function StockSearchApp() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -83,41 +85,64 @@ export default function StockSearchApp() {
     const bodydata = {
       stock_symbol: orderDetails.stock.name,
       order_side: orderDetails.type,
-      stock_isin: orderDetails.stock.id,
-      trigger_price: orderDetails.triggerPrice,
-      limit_price: orderDetails.limitPrice,
-      stoploss_limit_price: orderDetails.stoplossLimitPrice,
-      stoploss_trigger_price: orderDetails.stoplossTriggerPrice,
-      target_limit_price: orderDetails.targetLimitPrice,
-      target_trigger_price: orderDetails.targetTriggerPrice,
-      quantity: orderDetails.quantity,
-      created_by : "Menual"
+      stock_isin: orderDetails.stock.nse_scrip_code || orderDetails.stock.bse_scrip_code || orderDetails.stock.id || "",
+      price: +orderDetails.stockPrice || 0,  // Ensure it defaults to 0 if undefined
+      stoploss_price: +orderDetails.stoplossPrice || 0, // Ensure it defaults to 0 if undefined
+      target_price: +orderDetails.targetPrice || 0, // Ensure it defaults to 0 if undefined
+      quantity: +orderDetails.quantity || 0, // Ensure it defaults to 0 if undefined
+      created_by: "Menual"
     };
-    console.log(bodydata)
-    // try {
-    //   const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
-    //   const response = await fetch('http://127.0.0.1:8080/order/new_order/', {
-    //     method: 'POST',
-    //     body: JSON.stringify({ trade_today: false }),
-    //     headers: {
-    //       'accept': 'application/json',
-    //       ...(token && { 'Authorization': `Bearer ${token}` }), // Include the Authorization header if token exists
-    //     },
-    //   });
-    //   const detailData = await response.json()
-    //   setSelectedStock(detailData)
-    // } catch (error) {
-    // }
-
-
-
-    setShowBuyDialog(false)
-    setShowSellDialog(false)
-    toast({
-      title: "Order Submitted",
-      description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.name} has been placed.`,
-      duration: 3000,
-    })
+    
+    try {
+      const token = Cookies.get("access_token");
+      const response = await fetch('http://127.0.0.1:8080/order/new_order/', {
+        method: 'POST',
+        body: JSON.stringify(bodydata),
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' // Ensure Content-Type is set
+        },
+      });
+    
+      console.log("Order Created response:", response);
+    
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: "Order Created Successfully",
+          description: data.message,
+          duration: 3000,
+        });
+        setSelectedStock(data);
+      } else {
+        const errorData = await response.json(); // Attempt to get error message from server
+        console.error("Error creating order:", errorData);
+        toast({
+          title: "Order Creation Failed",
+          description: errorData.detail || "An error occurred while creating the order.",
+          duration: 3000,
+        });
+      }
+    
+    } catch (error) {
+      console.error("Fetch error:", error);
+      toast({
+        title: "Request Error",
+        description: "An error occurred while sending the order request.",
+        duration: 3000,
+      });
+    } finally {
+      // This will run regardless of success or failure
+      setShowBuyDialog(false);
+      setShowSellDialog(false);
+      toast({
+        title: "Order Submitted",
+        description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.name} has been placed.`,
+        duration: 3000,
+      });
+    }
+    
   }
 
   return (
@@ -178,29 +203,29 @@ export default function StockSearchApp() {
                 <div className="col-span-1 md:col-span-2 lg:col-span-3">
                   <h2 className="text-3xl font-bold mb-2">{selectedStock.name}</h2>
                   <div className="flex items-center space-x-4">
-                    <span className="text-2xl font-semibold"> ₹{selectedStock.ltp.toFixed(2)}</span>
+                    <span className="text-2xl font-semibold"> ₹{selectedStock.ltp?.toFixed(2)}</span>
                     <span className={`text-lg font-medium ${selectedStock.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {selectedStock.change >= 0 ? <TrendingUp className="inline mr-1" /> : <TrendingDown className="inline mr-1" />}
-                      {selectedStock.change.toFixed(2)} ({selectedStock.changePercent.toFixed(2)}%)
+                      {selectedStock.change?.toFixed(2)} ({selectedStock.changePercent?.toFixed(2)}%)
                     </span>
                   </div>
                 </div>
                 <StockDataCard title="Market Data" icon={<BarChart2 className="h-5 w-5" />}>
-                  <DataItem label="Open" value={selectedStock.open.toFixed(2)} />
-                  <DataItem label="High" value={selectedStock.high.toFixed(2)} />
-                  <DataItem label="Low" value={selectedStock.low.toFixed(2)} />
-                  <DataItem label="Volume" value={selectedStock.volume.toLocaleString()} />
+                  <DataItem label="Open" value={selectedStock.open?.toFixed(2)} />
+                  <DataItem label="High" value={selectedStock.high?.toFixed(2)} />
+                  <DataItem label="Low" value={selectedStock.low?.toFixed(2)} />
+                  <DataItem label="Volume" value={selectedStock?.volume?.toLocaleString()} />
                 </StockDataCard>
                 {/* Uncomment and adjust these cards if you have the data available */}
                 {/* <StockDataCard title="Financial Metrics" icon={<DollarSign className="h-5 w-5" />}>
-                  <DataItem label="Market Cap" value={`$${(selectedStock.marketCap / 1e9).toFixed(2)}B`} />
-                  <DataItem label="P/E Ratio" value={selectedStock.pe.toFixed(2)} />
-                  <DataItem label="Dividend" value={selectedStock.dividend.toFixed(2)} />
-                  <DataItem label="Yield" value={`${selectedStock.yield.toFixed(2)}%`} />
+                  <DataItem label="Market Cap" value={`$${(selectedStock.marketCap / 1e9)?.toFixed(2)}B`} />
+                  <DataItem label="P/E Ratio" value={selectedStock.pe?.toFixed(2)} />
+                  <DataItem label="Dividend" value={selectedStock.dividend?.toFixed(2)} />
+                  <DataItem label="Yield" value={`${selectedStock.yield?.toFixed(2)}%`} />
                 </StockDataCard>
                 <StockDataCard title="Technical Indicators" icon={<Activity className="h-5 w-5" />}>
-                  <DataItem label="EMA" value={selectedStock.ema.toFixed(2)} />
-                  <DataItem label="RSI" value={selectedStock.rsi.toFixed(2)} />
+                  <DataItem label="EMA" value={selectedStock.ema?.toFixed(2)} />
+                  <DataItem label="RSI" value={selectedStock.rsi?.toFixed(2)} />
                 </StockDataCard> */}
               </div>
               <div className="flex space-x-4 mt-6">
@@ -277,12 +302,9 @@ function DataItem({ label, value }) {
 
 function TradeForm({ stock, type, onSubmit }) {
   const [quantity, setQuantity] = useState('')
-  const [limitPrice, setLimitPrice] = useState('')
-  const [triggerPrice, setTriggerPrice] = useState('')
-  const [stoplossTriggerPrice, setStoplossTriggerPrice] = useState('')
-  const [targetTriggerPrice, setTargetTriggerPrice] = useState('')
-  const [stoplossLimitPrice, setStoplossLimitPrice] = useState('')
-  const [targetLimitPrice, setTargetLimitPrice] = useState('')
+  const [stockPrice, setStockPrice] = useState('')
+  const [stoplossPrice, setStoplossPrice] = useState('')
+  const [targetPrice, setTargetPrice] = useState('')
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -290,59 +312,51 @@ function TradeForm({ stock, type, onSubmit }) {
       stock,
       type,
       quantity,
-      limitPrice,
-      triggerPrice,
-      stoplossTriggerPrice,
-      targetTriggerPrice,
-      stoplossLimitPrice,
-      targetLimitPrice
+      stockPrice,
+      stoplossPrice,
+      targetPrice
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Price</label>
-        <Input type="text" value={stock.ltp.toFixed(2)} readOnly className="bg-gray-100" />
+        <label className="block text-sm font-medium text-gray-700">Live Price</label>
+        <Input type="text" value={stock.ltp?.toFixed(2)} readOnly className="bg-gray-200" />
       </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 ">Margin</label>
+        <Input type="number"  className="bg-gray-200" value={stockPrice*stockPrice} readOnly  step="0.01" />
+      </div>
+
+
       <div>
         <label className="block text-sm font-medium text-gray-700">Quantity</label>
         <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">Limit Price</label>
-        <Input type="number" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} step="0.01" />
+        <Input type="number" value={stockPrice} onChange={(e) => setStockPrice(e.target.value)} step="0.01" />
       </div>
+
+      
+      
       <div>
-        <label className="block text-sm font-medium text-gray-700">Trigger Price</label>
-        <Input type="number" value={triggerPrice} onChange={(e) => setTriggerPrice(e.target.value)} step="0.01" />
+        <label className="block text-sm font-medium text-gray-700">Stoploss Price</label>
+        <Input type="number" className="bg-red-300" value={stoplossPrice} onChange={(e) => setStoplossPrice(e.target.value)} step="0.01" />
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700">Stoploss Limit Price</label>
-        <Input type="number" value={stoplossLimitPrice} onChange={(e) => setStoplossLimitPrice(e.target.value)} step="0.01" />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Stoploss Trigger Price</label>
-        <Input type="number" value={stoplossTriggerPrice} onChange={(e) => setStoplossTriggerPrice(e.target.value)} step="0.01" />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Target Limit Price</label>
-        <Input type="number" value={targetLimitPrice} onChange={(e) => setTargetLimitPrice(e.target.value)} step="0.01" />
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Target Trigger Price</label>
-        <Input type="number" value={targetTriggerPrice} onChange={(e) => setTargetTriggerPrice(e.target.value)} step="0.01" />
+        <label className="block text-sm font-medium text-gray-700">Target Price</label>
+        <Input type="number" className="bg-green-300" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} step="0.01" />
       </div>
       
       
       <div className="sm:col-span-2">
-        <Button type="submit" className={`w-full ${type === 'buy' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-red-500 hover:bg-red-600'} text-white`}>
-          {type === 'buy' ? <ShoppingCart className="mr-2 h-4 w-4" /> : <Banknote className="mr-2 h-4 w-4" />}
-          {type === 'buy' ? 'Buy' : 'Sell'} Stock
+        <Button type="submit" className={`w-full ${type === 'BUY' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-red-500 hover:bg-red-600'} text-white`}>
+          {type === 'BUY' ? <ShoppingCart className="mr-2 h-4 w-4" /> : <Banknote className="mr-2 h-4 w-4" />}
+          {type === 'BUY' ? 'Buy' : 'Sell'} Stock
         </Button>
       </div>
     </form>
