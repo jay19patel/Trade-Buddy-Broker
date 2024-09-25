@@ -47,14 +47,14 @@ export default function LoginPage() {
     
       if (response.ok) {
         const data = await response.json();
-        Cookies.set("access_token", data.payload.access_token);
-        Cookies.set("full_name", data.payload.full_name);
-        router.push("/");
+        await Cookies.set("access_token", data.payload.access_token);
+        await Cookies.set("full_name", data.payload.full_name);
         toast({
           title: "Authentication Success",
           description: "Successfully Logged In",
           duration: 3000,
         });
+        router.push("/");
       } else {
         const errorData = await response.json();
         toast({
@@ -84,6 +84,7 @@ export default function LoginPage() {
     try {
       const response = await axios.get(`http://localhost:8080/auth/verify_email/send_token/${verificationEmail}`)
       if (response.ok){
+        router.push("/")
         toast({
           title: "Email Verification Success",
           description: "Verification email sent successfully",

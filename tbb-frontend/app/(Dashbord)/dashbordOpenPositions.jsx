@@ -53,9 +53,9 @@ export default function TradingTable({isLoading,trades}) {
       case 'Exit Order':
         return 'bg-red-100'
       case 'Quantity Add Order':
-        return 'bg-green-100'
-      case 'New Order':
         return 'bg-blue-100'
+      case 'New Order':
+        return 'bg-green-100'
       case 'Stoploss Order':
         return 'bg-yellow-100'
 

@@ -1,16 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
+const publicRoutes = ['/login', '/registration', '/hello-world']
 
 export function middleware(request) {
+  const accessToken = request.cookies.get('access_token')
+  const { pathname } = request.nextUrl
 
-  // const token = request.cookies.get('access_token');
-  // if (!token){
-  //   return NextResponse.redirect(new URL('/login', request.url));
-  // }
-  // return NextResponse.next();
+  if (publicRoutes.includes(pathname)) {
+    return NextResponse.next()
+  }
+
+  if (!accessToken && !publicRoutes.includes(pathname)) {
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    '/((?!login|register).*)',
+    '/((?!api|_next|_static|_vercel|[\\w-]+\\.\\w+).*)',
   ],
-};
+}

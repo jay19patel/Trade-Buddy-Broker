@@ -13,7 +13,7 @@ import { BiLogOut } from 'react-icons/bi'
 import { TbTransactionDollar } from 'react-icons/tb'
 import { ImAddressBook } from "react-icons/im";
 import { cn } from '@/lib/utils'
-
+import { LuContact } from "react-icons/lu";
 const menuItems = [
   { name: 'Dashboard', url: '/', icon: GrAnalytics },
   { name: 'Overview', url: '/trades-overview', icon: VscGitPullRequestCreate },
@@ -21,7 +21,8 @@ const menuItems = [
   { name: 'Transaction', url: '/transaction', icon: TbTransactionDollar },
   { name: 'Order Book', url: '/ordersbook', icon: ImAddressBook },
   { name: 'Position Book', url: '/positionbook', icon: ImAddressBook },
-  { name: 'Logout', url: '/login', icon: BiLogOut },
+  { name: 'Contact Us', url: '/hello-world', icon: LuContact },
+  { name: 'Logout', url: '/logout', icon: BiLogOut },
 ]
 
 const MenuItem = ({ item, mobile = false }) => (

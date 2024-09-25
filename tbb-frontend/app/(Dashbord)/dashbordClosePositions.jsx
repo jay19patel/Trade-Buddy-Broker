@@ -53,9 +53,9 @@ export default function TradingTable({isLoading,trades}) {
       case 'Exit Order':
         return 'bg-red-100'
       case 'Quantity Add Order':
-        return 'bg-green-100'
-      case 'New Order':
         return 'bg-blue-100'
+      case 'New Order':
+        return 'bg-green-100'
       case 'Stoploss Order':
         return 'bg-yellow-100'
 
@@ -71,7 +71,7 @@ export default function TradingTable({isLoading,trades}) {
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 lg:p-3">
       <Card className="shadow-lg bg-white">
         <CardContent className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Open Positions</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Close Positions</h2>
           <div className="overflow-x-auto -mx-6 px-6">
             <Table className="border-collapse border border-gray-200">
               <TableHeader>
