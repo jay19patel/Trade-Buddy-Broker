@@ -144,10 +144,15 @@ async def verify_email_send_token(email,db: AsyncSession = Depends(get_db)):
                                                         "AccountRole": account.role
                                                         }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
                                                     
-            await email_send_access_token([email.email],access_token)
-            # return {"message": "Email sent successfully", "payload": {"access_token": access_token}}
-            return {"message": "Email sent successfully"}
+            # await email_send_access_token([account.email_id],access_token)
+            return {"message": "Email sent successfully", 
+                    "payload": {"access_token": str(access_token),
+                                "link_for_verification":f"http://localhost:8080/auth/verify_email/verification/{access_token}"                            
+                                }}
+            # return {"message": "Email sent successfully"}
         return {"message": "Email Alredy Verified"}
     except Exception as e:
+        # raise HTTPException(detail=e,status_code=404)
+        print("Error :",e)
         return e
 

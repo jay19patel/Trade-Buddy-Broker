@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
 
+  const { toast } = useToast()
   const [openTrades, setOpenTrades] = useState([])
   const [closeTrades, setCloseTrades] = useState([])
   const [dashBordCount, setDashBordCount] = useState([

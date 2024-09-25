@@ -25,7 +25,6 @@ class Account(Base):
     trailing_status = Column(Boolean, default=True)
     trailing_stoploss = Column(Float, default=0.0)
     trailing_target = Column(Float, default=0.0)
-    description = Column(String, default="")
     created_datetime = Column(DateTime(timezone=True), server_default=func.now())
 
     transactions = relationship('Transaction', back_populates='account')

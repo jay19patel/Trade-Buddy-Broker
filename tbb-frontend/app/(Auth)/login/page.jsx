@@ -1,57 +1,105 @@
 "use client"
-import Cookies from 'js-cookie'; 
+
+import Cookies from 'js-cookie'
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import axios from 'axios';
+import axios from 'axios'
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [verificationEmail, setVerificationEmail] = useState("")
+  const [isVerifying, setIsVerifying] = useState(false)
   const { toast } = useToast()
-  const  router = useRouter()
+  const router = useRouter()
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     setIsLoading(true)
 
     try {
-      const response = await axios.post('http://127.0.0.1:8080/auth/login_account', {
-        user_id: email,
-        password: password
-      },
-      {
-        withCredentials: true
-      }
+      const response = await fetch('http://127.0.0.1:8080/auth/login_account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          user_id: email,
+          password: password
+        })
+      });
     
-    );
-    Cookies.set("access_token",response.data.payload.access_token)
-    Cookies.set("full_name",response.data.payload.full_name)
-      router.push("/")
-      toast({
-        title: "Authentication Success",
-        description: `Sucessfully Login`,
-        duration: 3000,
-      })      
+      if (response.ok) {
+        const data = await response.json();
+        Cookies.set("access_token", data.payload.access_token);
+        Cookies.set("full_name", data.payload.full_name);
+        router.push("/");
+        toast({
+          title: "Authentication Success",
+          description: "Successfully Logged In",
+          duration: 3000,
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Authentication Failed",
+          description: errorData?.message || "An error occurred",
+          duration: 3000,
+        });
+      }
     } catch (error) {
       toast({
         title: "Authentication Failed",
-        description: error.response,
+        description: "An error occurred",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+    
+
+
+  }
+
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault()
+    setIsVerifying(true)
+
+    try {
+      const response = await axios.get(`http://localhost:8080/auth/verify_email/send_token/${verificationEmail}`)
+      if (response.ok){
+        toast({
+          title: "Email Verification Success",
+          description: "Verification email sent successfully",
+          duration: 3000,
+          })
+          setIsVerifying(false)
+        }
+    } catch (error) {
+      toast({
+        title: "Verification Failed",
+        description: error.response?.data?.message || "An error occurred",
         duration: 3000,
       })
+    } finally {
+      setIsVerifying(false)
     }
-    finally{
-    }
-
-
-
-    setIsLoading(false)
   }
 
   return (
@@ -64,13 +112,13 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email_id">Email</Label>
+              <Label htmlFor="email_id">User Id</Label>
               <Input
                 id="email_id"
-                type="email"
+                type="text"
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)} // Update email state
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -81,7 +129,7 @@ export default function LoginPage() {
                 type="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)} // Update password state
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -89,12 +137,45 @@ export default function LoginPage() {
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
-          <p className="text-center mt-4 text-sm">
-            Don't have an account?{" "}
-            <Link href="/registration" className="text-primary hover:underline">
-              Register here
-            </Link>
-          </p>
+          <div className="flex justify-between items-center mt-4">
+            <p className="text-sm">
+              Don't have an account?{" "}
+              <Link href="/registration" className="text-primary hover:underline">
+                Register here
+              </Link>
+            </p>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="link" className="text-sm text-primary hover:underline">
+                  Verify Email
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px] bg-white">
+                <DialogHeader>
+                  <DialogTitle>Verify Your Email</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address to receive a verification link.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleVerifyEmail} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="verification_email">Email</Label>
+                    <Input
+                      id="verification_email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={verificationEmail}
+                      onChange={(e) => setVerificationEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full bg-blue-900 text-white hover:text-black" disabled={isVerifying}>
+                    {isVerifying ? "Verifying..." : "Verify Email"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardContent>
       </Card>
     </div>
