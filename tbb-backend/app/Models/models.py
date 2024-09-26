@@ -72,6 +72,10 @@ class ProductType(Enum):
     INTRADAY = 'Intraday'
     MARGIN = 'Margin'
 
+class StockType(Enum):
+    STOCK = 'Stocks'
+    OPTION ='Option'
+
 class Position(Base):
     """Position model."""
     __tablename__ = 'positions'
@@ -79,7 +83,7 @@ class Position(Base):
     position_id = Column(String, primary_key=True, nullable=False)
     account_id = Column(String, ForeignKey('accounts.account_id'), nullable=False)
     stock_symbol = Column(String, nullable=False)
-    stock_isin = Column(String, nullable=False) 
+    stock_type = Column(sqlEnum(StockType), nullable=False, default=StockType.STOCK)
 
     position_status = Column(sqlEnum(PositionStatus), nullable=False, default=PositionStatus.PENDING)
     position_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
@@ -108,9 +112,8 @@ class Order(Base):
     order_id = Column(String, primary_key=True, nullable=False)
     account_id = Column(String, ForeignKey('accounts.account_id'), nullable=False)
     position_id = Column(String, ForeignKey('positions.position_id'), nullable=False)
-    stock_isin = Column(String, nullable=False)
     stock_symbol = Column(String, nullable=False)
-    
+
     order_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
     order_types = Column(sqlEnum(OrderTypes), nullable=False, default=OrderTypes.NewOrder)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
@@ -132,7 +135,7 @@ class Order(Base):
 
 class LivePrice(Base):
     __tablename__ = 'live_prices'
-    stock_isin = Column(String, primary_key=True, nullable=False)
-    stock_symbol = Column(String, nullable=False)
-    price = Column(Float,nullable=False)
-    last_updated_at = Column(DateTime(timezone=True), server_default=func.now(),onupdate=func.now()) 
+    stock_symbol = Column(String, primary_key=True, nullable=False)
+    is_holding = Column(Boolean, default=False)
+    price = Column(Float, nullable=False)
+    last_updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

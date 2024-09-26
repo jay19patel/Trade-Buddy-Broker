@@ -23,7 +23,6 @@ async def create_exit_order(db, order, price):
         "order_id": generate_unique_id("ORD"),
         "account_id": order.account_id,
         "position_id": order.position_id,
-        "stock_isin": order.stock_isin,
         "stock_symbol": order.stock_symbol,
         "order_types": order.order_types,
         "product_type": order.product_type,

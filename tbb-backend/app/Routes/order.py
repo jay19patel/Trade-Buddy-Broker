@@ -34,7 +34,7 @@ async def create_new_order(
         "position_id": position_id,
         "account_id": account.account_id,
         "stock_symbol": request.stock_symbol,
-        "stock_isin": request.stock_isin,
+        "stock_type": request.stock_type,
         "current_price": request.price,
         "created_by": request.created_by,
         "stoploss_price":request.stoploss_price,
@@ -45,7 +45,6 @@ async def create_new_order(
         "order_id": generate_unique_id("ORD"),
         "account_id": account.account_id,
         "position_id": position_id,
-        "stock_isin": request.stock_isin,
         "stock_symbol": request.stock_symbol,
         "order_types": OrderTypes.NewOrder,
         "order_side": request.order_side,
@@ -136,7 +135,6 @@ async def create_stoploss_order(
         "order_id": generate_unique_id("ORD"),
         "account_id": account.account_id,
         "position_id": position.position_id,
-        "stock_isin": position.stock_isin,
         "stock_symbol": position.stock_symbol,
         "order_types": OrderTypes.StopLossOrder,
         "product_type": position.product_type,
@@ -206,7 +204,6 @@ async def add_quantity_in_position(
             "order_id": generate_unique_id("ORD"),
             "account_id": account.account_id,
             "position_id": position.position_id,
-            "stock_isin": position.stock_isin,
             "stock_symbol": position.stock_symbol,
             "order_types": OrderTypes.QtyAddOrder,
             "order_side": request.order_side,
@@ -252,7 +249,6 @@ async def create_exit_order(
             "order_id": generate_unique_id("ORD"),
             "account_id": account.account_id,
             "position_id": position.position_id,
-            "stock_isin": position.stock_isin,
             "stock_symbol": position.stock_symbol,
             "order_types": OrderTypes.ExitOrder,
             "order_side":  OrderSide.SELL if request.order_side else OrderSide.BUY,
@@ -359,29 +355,39 @@ async def get_single_position(
 from sqlalchemy.orm import joinedload
 from sqlalchemy import desc
 
+
+from app.Core.utility import fetch_stock_data
+from app.Models.models import StockType
+def get_live_price(positions):
+    list_of_symbol = list({(position.stock_symbol, "Stocks" if position.stock_type == StockType.STOCK else "Option") for position in positions})
+    print("list of symbol:",list_of_symbol)
+    final_data = {i[0]: fetch_stock_data(*i).get("ltp") for i in list_of_symbol if fetch_stock_data(*i)}
+    print("Live Price:",final_data)
+    return final_data
+
 @order_route.get("/positions")
 async def get_positions(account: Account = Depends(get_account_from_token),
                         db: AsyncSession = Depends(get_db)):
     try:
-        
-        
-
+    
         query = select(Position).options(joinedload(Position.orders)).where(Position.account_id == account.account_id,
                 or_(Position.position_status == PositionStatus.PENDING,
                     func.date(Position.created_date) == date.today())
                 ).order_by(Position.created_date.desc())
         result = await db.execute(query)
         positions = result.unique().scalars().all()
+        
+        live_price =get_live_price(positions)
+        
         for position in positions:
             position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
+            position.current_price = live_price.get(position.stock_symbol)
         # Overview creation
 
 
-        total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id)
-)
-        # return data.scalars().all()
-
-
+        total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id))
+        
+        
         overview = {
             "total_positions": len(positions),
             "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
@@ -393,11 +399,8 @@ async def get_positions(account: Account = Depends(get_account_from_token),
             "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
             "balance":account.balance,
             "pnl_total":total_pnl_result.scalar()
-
-
         }
-
-        return {"data": positions, "overview": overview}
+        return {"data": positions, "overview": overview,"live_price":live_price}
 
     except Exception as e:
         print(f"Error: {e}")

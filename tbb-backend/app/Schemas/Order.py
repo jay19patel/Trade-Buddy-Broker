@@ -1,11 +1,11 @@
 from pydantic import BaseModel
 from typing import Optional
-from app.Models.models import CreateBy,OrderSide
+from app.Models.models import CreateBy,OrderSide,StockType
 
 class CreateNewOrder(BaseModel):
     stock_symbol:str
     order_side:OrderSide
-    stock_isin:Optional[str] = None
+    stock_type:StockType
     price:float
     stoploss_price: float
     target_price: float

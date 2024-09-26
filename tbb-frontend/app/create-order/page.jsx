@@ -85,7 +85,7 @@ export default function StockSearchApp() {
     const bodydata = {
       stock_symbol: orderDetails.stock.name,
       order_side: orderDetails.type,
-      stock_isin: orderDetails.stock.nse_scrip_code || orderDetails.stock.bse_scrip_code || orderDetails.stock.id || "",
+      stock_type : orderDetails.stock.type,
       price: +orderDetails.stockPrice || 0,  // Ensure it defaults to 0 if undefined
       stoploss_price: +orderDetails.stoplossPrice || 0, // Ensure it defaults to 0 if undefined
       target_price: +orderDetails.targetPrice || 0, // Ensure it defaults to 0 if undefined

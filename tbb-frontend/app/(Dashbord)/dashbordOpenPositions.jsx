@@ -28,6 +28,7 @@ export default function TradingTable({isLoading,trades}) {
 
   const handleExit = async (trade) => {
     try {
+      // Fetch Live Price 
 
       const sendBody = {
           "position_id": trade.position_id,
