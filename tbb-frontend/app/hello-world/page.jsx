@@ -16,8 +16,8 @@ export default function ContactPage() {
             <CardDescription className="text-purple-100">You can reach us using the following information:</CardDescription>
           </CardHeader>
           <CardContent className="mt-4">
-            <p className="flex items-center mb-2"><Mail className="mr-2 text-purple-600" /> <strong>Email:</strong> contact@example.com</p>
-            <p className="flex items-center"><User className="mr-2 text-purple-600" /> <strong>Name:</strong> Example Company</p>
+            <p className="flex items-center mb-2"><Mail className="mr-2 text-purple-600" /> <strong>Email:</strong> developer.jay19@gmail.com</p>
+            <p className="flex items-center"><User className="mr-2 text-purple-600" /> <strong>Name:</strong> Jay Patel AKA NJ </p>
           </CardContent>
         </Card>
         
@@ -46,11 +46,11 @@ export default function ContactPage() {
         <CardContent className="mt-4">
           <ul className="space-y-4">
             {[
-              { icon: User, title: "User Management API", description: "Manage user accounts and authentication.", link: "/api/users" },
-              { icon: Package, title: "Product Catalog API", description: "Access our extensive product database.", link: "/api/products" },
-              { icon: ShoppingCart, title: "Order Processing API", description: "Integrate order management into your systems.", link: "/api/orders" },
-              { icon: BarChart, title: "Analytics API", description: "Retrieve detailed analytics and reports.", link: "/api/analytics" },
-              { icon: CreditCard, title: "Payment Gateway API", description: "Securely process payments through our platform.", link: "/api/payments" },
+              { icon: User, title: "User Management API", description: "Manage user accounts and authentication.", link: "http://localhost:8080/docs" },
+              // { icon: Package, title: "Product Catalog API", description: "Access our extensive product database.", link: "/api/products" },
+              // { icon: ShoppingCart, title: "Order Processing API", description: "Integrate order management into your systems.", link: "/api/orders" },
+              // { icon: BarChart, title: "Analytics API", description: "Retrieve detailed analytics and reports.", link: "/api/analytics" },
+              // { icon: CreditCard, title: "Payment Gateway API", description: "Securely process payments through our platform.", link: "/api/payments" },
             ].map((api, index) => (
               <li key={index} className="bg-gray-100 p-4 rounded-lg">
                 <div className="flex items-center mb-2">

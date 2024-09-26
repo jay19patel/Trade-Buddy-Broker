@@ -7,16 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const indices = [
-  { date: "2023-06-01", name: "NIFTY50", ceProfit: 0, ceProfitAmount: 0, peProfit: 1, peProfitAmount: 3895, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 1, netAmount: 3895 },
   { date: "2023-06-15", name: "BANKNIFTY", ceProfit: 0, ceProfitAmount: 0, peProfit: 1, peProfitAmount: 14697, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 1, netAmount: 1200 },
   { date: "2023-07-01", name: "SENSEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 0, ceLoss: 1, ceLossAmount: 3186, peLoss: 0, peLossAmount: 0, netTrades: 1, netAmount: -3186 },
   { date: "2023-08-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 500 },
-  { date: "2023-09-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 800 },
-  { date: "2023-10-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 900 },
-  { date: "2023-11-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 1200 },
-  { date: "2023-12-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 1500 },
-  { date: "2024-01-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 1900 },
-  { date: "2024-02-15", name: "BANKEX", ceProfit: 0, ceProfitAmount: 0, peProfit: 0, peProfitAmount: 300, ceLoss: 0, ceLossAmount: 0, peLoss: 0, peLossAmount: 0, netTrades: 0, netAmount: 2200 },
 ]
 
 export default function TradingAnalysisDashboard() {
@@ -90,6 +83,35 @@ export default function TradingAnalysisDashboard() {
         </CardContent>
       </Card>
 
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-green-100">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Total Profit</h2>
+              <p className="text-2xl font-bold text-green-700">{totals.ceProfitAmount + totals.peProfitAmount}</p>
+            </div>
+            <ArrowUp className="h-8 w-8 text-green-700" />
+          </CardContent>
+        </Card>
+        <Card className="bg-red-100">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Total Loss</h2>
+              <p className="text-2xl font-bold text-red-700">{totals.ceLossAmount + totals.peLossAmount}</p>
+            </div>
+            <ArrowDown className="h-8 w-8 text-red-700" />
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-100">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Net Amount</h2>
+              <p className="text-2xl font-bold text-blue-700">{totals.netAmount}</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-blue-700" />
+          </CardContent>
+        </Card>
+      </div>
       <div className="bg-white border rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Analysis Table</h2>
         <div className="mb-4 flex gap-2">
@@ -163,35 +185,7 @@ export default function TradingAnalysisDashboard() {
         </div>
       </div>
       
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-green-100">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Total Profit</h2>
-              <p className="text-2xl font-bold text-green-700">{totals.ceProfitAmount + totals.peProfitAmount}</p>
-            </div>
-            <ArrowUp className="h-8 w-8 text-green-700" />
-          </CardContent>
-        </Card>
-        <Card className="bg-red-100">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Total Loss</h2>
-              <p className="text-2xl font-bold text-red-700">{totals.ceLossAmount + totals.peLossAmount}</p>
-            </div>
-            <ArrowDown className="h-8 w-8 text-red-700" />
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-100">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Net Amount</h2>
-              <p className="text-2xl font-bold text-blue-700">{totals.netAmount}</p>
-            </div>
-            <DollarSign className="h-8 w-8 text-blue-700" />
-          </CardContent>
-        </Card>
-      </div>
+      
     </div>
   )
 }

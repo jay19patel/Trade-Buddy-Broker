@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, BookOpen, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, BookOpen, X ,Edit} from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { useToast } from '@/hooks/use-toast'
 import Cookies from 'js-cookie'
 
@@ -12,6 +15,7 @@ export default function TradingTable({isLoading,trades}) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedTrade, setSelectedTrade] = useState(null)
   const [showOrderDialog, setShowOrderDialog] = useState(false)
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const { toast } = useToast()
   const tradesPerPage = 5
 
@@ -24,6 +28,11 @@ export default function TradingTable({isLoading,trades}) {
   const handleOpenOrders = (trade) => {
     setSelectedTrade(trade)
     setShowOrderDialog(true)
+  }
+
+  const handleOpenUpdateDialog = (trade) => {
+    setSelectedTrade(trade)
+    setShowUpdateDialog(true)
   }
 
   const handleExit = async (trade) => {
@@ -77,6 +86,94 @@ export default function TradingTable({isLoading,trades}) {
     } 
   }
 
+  const handleUpdateOrder = async (data) => {
+    try {
+      const bodySend = {
+          "position_id": data.position_id,
+          "stoploss_price": data.stoploss,
+          "target_price": data.target,
+          "quantity": data.quantity,
+          "created_by": "Menual"
+      }
+      const token = Cookies.get("access_token");
+      const response = await fetch(`http://127.0.0.1:8080/order/stoploss_order/`, {
+        method: 'POST',
+        body: JSON.stringify(bodySend),
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      })
+      if (response.ok) {
+        const responseData = await response.json();
+        toast({
+          title: "Order Updated Successfully",
+          description: responseData.message,
+          duration: 3000,
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Order Update Failed",
+          description: errorData.detail || "An error occurred while updating the order.",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      toast({
+        title: "Update Error",
+        description: "An error occurred while sending the update request.",
+        duration: 3000,
+      });
+    }
+  }
+
+  const handleAddQuantity = async (data) => {
+    try {
+      const bodySend = {
+        "position_id": data.position_id,
+        "order_side": "BUY",
+        "quantity": data.quantity,
+        "price": data.price,
+        "created_by": "Menual"
+    }
+      const token = Cookies.get("access_token");
+      const response = await fetch(`http://127.0.0.1:8080/order/quantity_add_order/`, {
+        method: 'POST',
+        body: JSON.stringify(bodySend),
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      })
+      if (response.ok) {
+        const responseData = await response.json();
+        toast({
+          title: "Quantity Added Successfully",
+          description: responseData.message,
+          duration: 3000,
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Adding Quantity Failed",
+          description: errorData.detail || "An error occurred while adding quantity.",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("Add quantity error:", error);
+      toast({
+        title: "Add Quantity Error",
+        description: "An error occurred while sending the add quantity request.",
+        duration: 3000,
+      });
+    }
+  }
+
   const getOrderTypeColor = (orderType) => {
     switch (orderType) {
       case 'Exit Order':
@@ -109,7 +206,7 @@ export default function TradingTable({isLoading,trades}) {
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Symbol</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Side</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Price</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
+                <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Stoploss</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Target</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Margin</TableHead>
@@ -152,18 +249,33 @@ export default function TradingTable({isLoading,trades}) {
                         <Button 
                           size="sm" 
                           variant="outline"
+                          className="bg-gray-100 text-black hover:bg-gray-200"
                           onClick={() => handleOpenOrders(trade)}
+                          
                         >
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Orders
+                          <BookOpen className="h-4 w-4" />
+                          {/* Orders */}
                         </Button>
+
                         <Button 
                           size="sm" 
-                          variant="destructive"
-                          onClick={() => handleExit(trade)}
+                          variant="outline"
+                          onClick={() => handleOpenUpdateDialog(trade)}
+                          className="bg-blue-100 text-blue-700 hover:bg-blue-200"
                         >
-                          <X className="h-4 w-4 mr-2" />
-                          Exit
+                          <Edit className="h-4 w-4" />
+                          {/* Update */}
+                        </Button>
+
+
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleExit(trade)}
+                          className="bg-red-100 text-red-900 hover:bg-red-200"
+                        >
+                          <X className="h-4 w-4" />
+                          {/* Exit */}
                         </Button>
                       </div>
                     </TableCell>
@@ -241,6 +353,58 @@ export default function TradingTable({isLoading,trades}) {
               </TableBody>
             </Table>
           </div>
+        </DialogContent>
+      </Dialog>
+
+
+
+      <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <DialogContent className="sm:max-w-[425px] bg-gradient-to-r from-blue-50 to-purple-50">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-indigo-800">Update Order</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-green-800">{selectedTrade?.current_price}</DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue="update" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-indigo-100">
+              <TabsTrigger value="update" className="data-[state=active]:bg-white">Update Order</TabsTrigger>
+              <TabsTrigger value="add" className="data-[state=active]:bg-white">Add Quantity</TabsTrigger>
+            </TabsList>
+            <TabsContent value="update" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="stoploss" className="text-indigo-700">Stoploss ({selectedTrade?.stoploss_price})</Label>
+                <Input id="stoploss" className="border-indigo-200 focus:border-indigo-500" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="target" className="text-indigo-700">Target ({selectedTrade?.target_price})</Label>
+                <Input id="target" className="border-indigo-200 focus:border-indigo-500" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quantity" className="text-indigo-700">Quantity ({selectedTrade?.buy_quantity})</Label>
+                <Input id="quantity" className="border-indigo-200 focus:border-indigo-500" />
+              </div>
+              <Button onClick={() => handleUpdateOrder({
+                position_id: selectedTrade?.position_id,
+                stoploss: parseFloat((document.getElementById('stoploss')).value),
+                target: parseFloat((document.getElementById('target')).value),
+                quantity: parseInt((document.getElementById('quantity')).value)
+              })} className="w-full bg-indigo-500 text-white hover:bg-indigo-600">Update</Button>
+            </TabsContent>
+            <TabsContent value="add" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="addPrice" className="text-indigo-700">Price</Label>
+                <Input id="addPrice" className="border-indigo-200 focus:border-indigo-500" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addQuantity" className="text-indigo-700">Quantity</Label>
+                <Input id="addQuantity" className="border-indigo-200 focus:border-indigo-500" />
+              </div>
+              <Button onClick={() => handleAddQuantity({
+                position_id: selectedTrade?.position_id,
+                price: parseFloat((document.getElementById('addPrice')).value),
+                quantity: parseInt((document.getElementById('addQuantity')).value)
+              })} className="w-full bg-indigo-500 text-white hover:bg-indigo-600">Submit</Button>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>

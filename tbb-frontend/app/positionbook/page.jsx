@@ -37,6 +37,7 @@ export default function EnhancedPositionBook() {
           throw new Error('Failed to fetch positions')
         }
         const data = await response.json()
+        console.log(data)
         setPositions(data)
         setLoading(false)
       } catch (err) {
@@ -78,6 +79,21 @@ export default function EnhancedPositionBook() {
     return <div className="w-full h-screen flex items-center justify-center text-red-500">Error: {error}</div>
   }
 
+  const getOrderTypeColor = (orderType) => {
+    switch (orderType) {
+      case 'Exit Order':
+        return 'bg-red-100'
+      case 'Quantity Add Order':
+        return 'bg-blue-100'
+      case 'New Order':
+        return 'bg-green-100'
+      case 'Stoploss Order':
+        return 'bg-yellow-100'
+
+      default:
+        return ''
+    }
+  }
   return (
     <div className="w-full max-w-7xl mx-auto p-4 space-y-4">
       <Card className="shadow-lg bg-white">
@@ -148,7 +164,7 @@ export default function EnhancedPositionBook() {
                     <TableCell>{position.buy_quantity}</TableCell>
                     <TableCell>₹{position.buy_average}</TableCell>
                     <TableCell>₹{position.sell_average}</TableCell>
-                    <TableCell className={position.pnl_total >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                    <TableCell className={position.pnl_total > 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
                       ₹{position.pnl_total}
                     </TableCell>
                     <TableCell>{position.position_status}</TableCell>
@@ -208,55 +224,37 @@ export default function EnhancedPositionBook() {
       </Card>
 
       <Dialog open={showPositionDialog} onOpenChange={setShowPositionDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Position Details</DialogTitle>
+        <DialogContent className="sm:max-w-[1200px] w-[100vw] max-h-[100vh] overflow-y-auto p-4 sm:p-6 bg-white">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-semibold">Orders for {selectedPosition?.stock_symbol} [ {selectedPosition?.position_id} ]</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">ID:</span>
-              <span className="col-span-3">{selectedPosition?.position_id}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Symbol:</span>
-              <span className="col-span-3">{selectedPosition?.stock_symbol}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Side:</span>
-              <span className={`col-span-3 ${selectedPosition?.position_side === 'BUY' ? 'text-green-600' : 'text-red-600'}`}>
-                {selectedPosition?.position_side}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Quantity:</span>
-              <span className="col-span-3">{selectedPosition?.buy_quantity}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Buy Average:</span>
-              <span className="col-span-3">₹{selectedPosition?.buy_average}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Sell Average:</span>
-              <span className="col-span-3">₹{selectedPosition?.sell_average}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">P&L:</span>
-              <span className={`col-span-3 ${selectedPosition?.pnl_total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ₹{selectedPosition?.pnl_total}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Type:</span>
-              <span className="col-span-3">{selectedPosition?.stock_type}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Status:</span>
-              <span className="col-span-3">{selectedPosition?.position_status}</span>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <span className="font-bold">Created Date:</span>
-              <span className="col-span-3">{selectedPosition?.created_date && new Date(selectedPosition.created_date).toLocaleString()}</span>
-            </div>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <Table className="border-collapse border border-gray-400">
+              <TableHeader>
+                <TableRow className="bg-gray-200">
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Order ID</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Order Type</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Side</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Quantity</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Price</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-300 font-bold">Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedPosition?.orders.map((order) => (
+                  <TableRow key={order.order_id} className={`${getOrderTypeColor(order.order_types)}`}>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_id}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_types}</TableCell>
+                    <TableCell className={`py-2 px-4 border border-gray-300 font-semibold ${order.order_side === 'BUY' ? 'text-green-600' : 'text-red-600'}`}>
+                    {order.order_side}
+                    </TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </DialogContent>
       </Dialog>

@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { LuContact } from "react-icons/lu";
 const menuItems = [
   { name: 'Dashboard', url: '/', icon: GrAnalytics },
-  { name: 'Overview', url: '/trades-overview', icon: VscGitPullRequestCreate },
+  // { name: 'Overview', url: '/trades-overview', icon: VscGitPullRequestCreate },
   { name: 'Create Order', url: '/create-order', icon: SiManageiq },
   { name: 'Transaction', url: '/transaction', icon: TbTransactionDollar },
   { name: 'Position Book', url: '/positionbook', icon: ImAddressBook },

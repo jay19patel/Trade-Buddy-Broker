@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter,Path, Depends, HTTPException
+from fastapi import APIRouter,Path, Depends, HTTPException,Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -95,7 +95,6 @@ async def create_new_order(
         }
     }
 
-
 @order_route.post("/stoploss_order/")
 async def create_stoploss_order(
     request: CreateStoplossOrder,
@@ -166,7 +165,6 @@ async def create_stoploss_order(
             "position": position.position_id
         }
     }
-
     
 @order_route.post("/quantity_add_order/")
 async def add_quantity_in_position(
@@ -323,20 +321,18 @@ async def get_all_order_for_position(
 async def get_single_position(
     account: Account = Depends(get_account_from_token),
     db: AsyncSession = Depends(get_db)):
-    query = select(Position).options(joinedload(Position.orders)).where(Position.account_id == account.account_id).order_by(Position.created_date.desc())
+    query = select(Position).options(joinedload(Position.orders)).where(
+         Position.account_id == account.account_id,
+         Position.position_status==PositionStatus.COMPLETED
+           ).order_by(Position.created_date.desc())
     result = await db.execute(query)
     positions = result.unique().scalars().all()
     for position in positions:
-            position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
-    return position
+        position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
 
-
-
+    return positions
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy import desc
-
-
 from app.Core.utility import fetch_stock_data
 from app.Models.models import StockType
 def get_live_price(positions):
@@ -350,7 +346,6 @@ def get_live_price(positions):
 async def get_positions(account: Account = Depends(get_account_from_token),
                         db: AsyncSession = Depends(get_db)):
     try:
-    
         query = select(Position).options(joinedload(Position.orders)).where(Position.account_id == account.account_id,
                 or_(Position.position_status == PositionStatus.PENDING,
                     func.date(Position.created_date) == date.today())
@@ -363,28 +358,43 @@ async def get_positions(account: Account = Depends(get_account_from_token),
         for position in positions:
             position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
             position.current_price = live_price.get(position.stock_symbol)
-        # Overview creation
 
-
-        total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id))
-        
+        total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id))  
         
         overview = {
             "total_positions": len(positions),
             "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
             "closed_positions": sum(1 for p in positions if p.position_status == PositionStatus.COMPLETED),
-            # "pnl_realized": sum(p.pnl_total for p in positions if p.position_status == PositionStatus.COMPLETED),
-            # "pnl_unrealized": sum(p.pnl_total for p in positions if p.position_status != PositionStatus.COMPLETED),
             "pnl_todays": sum(p.pnl_total for p in positions),
             "positive_pnl_count": sum(1 for p in positions if p.pnl_total > 0),
             "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
             "balance":account.balance,
-            "pnl_total":total_pnl_result.scalar()
-        }
+            "pnl_total":total_pnl_result.scalar() or 0 }
         return {"data": positions, "overview": overview,"live_price":live_price}
-
     except Exception as e:
         print(f"Error: {e}")
         return {"error": "Failed to retrieve data"}
 
+#  ------------------------------- SSE---------------------------------------
+import asyncio
+from fastapi.responses import StreamingResponse
+import time
+
+async def event_generator():
+    while True:
+        data = f"data: The current stock price is {round(time.time(), 2)}\n\n"
+        yield data
+        await asyncio.sleep(2) 
+
+
+@order_route.get("/test_sse")
+async def test(request:Request,
+               account: Account = Depends(get_account_from_token),
+               db: AsyncSession = Depends(get_db)):
+    async def event_stream():
+        async for event in event_generator():
+            if await request.is_disconnected():
+                break
+            yield event
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 

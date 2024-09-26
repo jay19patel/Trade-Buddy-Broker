@@ -301,10 +301,10 @@ function DataItem({ label, value }) {
 }
 
 function TradeForm({ stock, type, onSubmit }) {
-  const [quantity, setQuantity] = useState('')
-  const [stockPrice, setStockPrice] = useState('')
-  const [stoplossPrice, setStoplossPrice] = useState('')
-  const [targetPrice, setTargetPrice] = useState('')
+  const [quantity, setQuantity] = useState(0)
+  const [stockPrice, setStockPrice] = useState(stock.ltp?.toFixed(2))
+  const [stoplossPrice, setStoplossPrice] = useState(type === 'BUY' ? (stock.ltp*0.9).toFixed(2) : (stock.ltp*1.1).toFixed(2))
+  const [targetPrice, setTargetPrice] = useState(type === 'BUY' ? (stock.ltp*1.2).toFixed(2) : (stock.ltp*0.8).toFixed(2))
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -327,29 +327,25 @@ function TradeForm({ stock, type, onSubmit }) {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 ">Margin</label>
-        <Input type="number"  className="bg-gray-200" value={stockPrice*stockPrice} readOnly  step="0.01" />
+        <Input type="number"  className="bg-gray-200" value={stock.ltp?.toFixed(2)*quantity} readOnly  step="0.01" />
       </div>
-
-
       <div>
         <label className="block text-sm font-medium text-gray-700">Quantity</label>
         <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700">Limit Price</label>
-        <Input type="number" value={stockPrice} onChange={(e) => setStockPrice(e.target.value)} step="0.01" />
-      </div>
-
-      
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Stoploss Price</label>
-        <Input type="number" className="bg-red-300" value={stoplossPrice} onChange={(e) => setStoplossPrice(e.target.value)} step="0.01" />
+        <Input type="number"  value={stockPrice} placeholder={stock.ltp?.toFixed(2)} onChange={(e) => setStockPrice(e.target.value)} step="0.01" />
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700">Target Price</label>
-        <Input type="number" className="bg-green-300" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} step="0.01" />
+        <label className="block text-sm font-medium text-gray-700">Stoploss Price <span className='text-xs text-red-700'>(-10%)</span></label>
+        <Input type="number" className="bg-red-300" value= {stoplossPrice}  step="0.01" onChange={(e) => setStoplossPrice(e.target.value)} />
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Target Price <span className='text-xs text-green-700'>(+20%)</span></label>
+        <Input type="number" className="bg-green-300" value={targetPrice} step="0.01" onChange={(e) => setTargetPrice(e.target.value)} />
       </div>
       
       
