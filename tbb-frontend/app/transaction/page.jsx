@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { v4 as uuidv4 } from 'uuid';
-import { PlusIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, DollarSignIcon, ClipboardIcon } from "lucide-react";
+import { PlusIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, DollarSignIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import Cookies from "js-cookie";
 
 export default function Component() {
   const [transactions, setTransactions] = useState([]);
@@ -18,30 +18,82 @@ export default function Component() {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [balance, setBalance] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      const token  = Cookies.get("access_token")
+      
+      const response = await fetch('http://localhost:8080/transaction/get_all_transactions', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      console.log(response)
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+      const data = await response.json();
+      console.log(data)
+      setTransactions(data.transaction_list);
+      setBalance(data.total_balance);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+
+    console.log("RUN")
+  };
 
   useEffect(() => {
-    if (transactions.length > 0) {
-      setBalance(transactions[transactions.length - 1].balance);
-    }
-  }, [transactions]);
+    fetchTransactions();
+  }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newBalance = transactionType === "Deposit" 
-      ? balance + parseFloat(amount) 
-      : balance - parseFloat(amount);
-    const newTransaction = {
-      transaction_id: uuidv4(),
-      account_id: "ACC" + Math.floor(1000 + Math.random() * 9000).toString(),
-      transaction_type: transactionType,
-      transaction_amount: parseFloat(amount),
-      transaction_note: note,
-      balance: newBalance,
-    };
-    setTransactions([...transactions, newTransaction]);
-    setAmount("");
-    setNote("");
+    try {
+      const newTransaction = {
+        transaction_type: transactionType,
+        amount: parseFloat(amount),
+        note: note || "-",
+      };
+
+      const token  = Cookies.get("access_token")
+      const response = await fetch('http://localhost:8080/transaction/create_transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(newTransaction),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add transaction');
+      }
+
+      await fetchTransactions();
+
+      setAmount("");
+      setNote("");
+    } catch (err) {
+      setError(err.message);
+    }
   };
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  if (error) {
+    return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}</div>;
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -51,8 +103,7 @@ export default function Component() {
         </CardHeader>
         <CardContent>
           <p className="text-center text-5xl font-bold flex items-center justify-center">
-            <DollarSignIcon className="mr-2 h-8 w-8" />
-            ₹{balance.toFixed(2)}
+            ₹ {balance.toFixed(2)}
           </p>
         </CardContent>
       </Card>
@@ -123,7 +174,7 @@ export default function Component() {
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Note</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
+                <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -150,10 +201,9 @@ export default function Component() {
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate" title={transaction.transaction_note || '-'}>
                     {transaction.transaction_note?.trim() === "" ? "-" : transaction.transaction_note}
-                    </TableCell>
-
-                  <TableCell className="text-right font-semibold">
-                    ₹{transaction.balance.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(transaction.transaction_datetime).toLocaleString()}
                   </TableCell>
                 </TableRow>
               ))}

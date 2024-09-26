@@ -19,7 +19,6 @@ const menuItems = [
   { name: 'Overview', url: '/trades-overview', icon: VscGitPullRequestCreate },
   { name: 'Create Order', url: '/create-order', icon: SiManageiq },
   { name: 'Transaction', url: '/transaction', icon: TbTransactionDollar },
-  { name: 'Order Book', url: '/ordersbook', icon: ImAddressBook },
   { name: 'Position Book', url: '/positionbook', icon: ImAddressBook },
   { name: 'Contact Us', url: '/hello-world', icon: LuContact },
   { name: 'Logout', url: '/logout', icon: BiLogOut },

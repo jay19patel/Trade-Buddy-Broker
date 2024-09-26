@@ -3,6 +3,42 @@ from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, func, 
 from enum import Enum
 from sqlalchemy.orm import relationship
 
+
+class OrderSide(Enum):
+    BUY = 'BUY'
+    SELL = 'SELL'
+
+class PositionStatus(Enum):
+    PENDING = 'Pending'
+    COMPLETED = 'Completed'
+
+
+class TransactionType(Enum):
+    DEPOSIT="Deposit"
+    WITHDRAW="Withdraw"
+    
+
+class OrderTypes(Enum):
+    NewOrder = "New Order"
+    StopLossOrder = "Stoploss Order"
+    QtyAddOrder = "Quantity Add Order"
+    ExitOrder = "Exit Order"
+
+class CreateBy(Enum):
+    MENUAL = "Menual"
+    ALGO = "Algo"
+
+class ProductType(Enum):
+    CNC = 'CNC'
+    INTRADAY = 'Intraday'
+    MARGIN = 'Margin'
+
+class StockType(Enum):
+    STOCK = 'Stocks'
+    OPTION ='Option'
+
+
+
 class Account(Base):
     """Account model."""
     INITIAL_BALANCE: float = 10000.00
@@ -39,42 +75,13 @@ class Transaction(Base):
     transaction_id = Column(String, unique=True, nullable=False)
     account_id = Column(String, ForeignKey('accounts.account_id'), nullable=False)
     email_id = Column(String, nullable=False)
-    transaction_type = Column(String, nullable=False)
+    transaction_type = Column(sqlEnum(TransactionType), nullable=False, default=TransactionType.DEPOSIT)
     transaction_amount = Column(Float, nullable=False)
     transaction_note = Column(String)
     transaction_datetime = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     account = relationship('Account', back_populates='transactions')
-
-
-class OrderSide(Enum):
-    BUY = 'BUY'
-    SELL = 'SELL'
-
-class PositionStatus(Enum):
-    PENDING = 'Pending'
-    COMPLETED = 'Completed'
-
-
-class OrderTypes(Enum):
-    NewOrder = "New Order"
-    StopLossOrder = "Stoploss Order"
-    QtyAddOrder = "Quantity Add Order"
-    ExitOrder = "Exit Order"
-
-class CreateBy(Enum):
-    MENUAL = "Menual"
-    ALGO = "Algo"
-
-class ProductType(Enum):
-    CNC = 'CNC'
-    INTRADAY = 'Intraday'
-    MARGIN = 'Margin'
-
-class StockType(Enum):
-    STOCK = 'Stocks'
-    OPTION ='Option'
 
 class Position(Base):
     """Position model."""

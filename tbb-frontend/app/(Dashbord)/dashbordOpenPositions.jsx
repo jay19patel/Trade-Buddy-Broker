@@ -107,7 +107,6 @@ export default function TradingTable({isLoading,trades}) {
                 <TableRow className="bg-gray-100">
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Position ID</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Symbol</TableHead>
-                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Live Price</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Side</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Price</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
@@ -123,8 +122,6 @@ export default function TradingTable({isLoading,trades}) {
                   <TableRow key={trade.position_id} className="">
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.position_id}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.stock_symbol}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
-                    <span className="px-2 py-1 rounded-full bg-blue-500 text-white text-xs">{trade.current_price}</span></TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
                       <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs">
                       {trade.position_side}

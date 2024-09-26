@@ -319,20 +319,18 @@ async def get_all_order_for_position(
     data = await db.execute(query)
     return data.scalars().all()
 
-@order_route.get("/position/{position_id}/")
+@order_route.get("/all_positions")
 async def get_single_position(
-    position_id: str = None,
     account: Account = Depends(get_account_from_token),
     db: AsyncSession = Depends(get_db)):
+    query = select(Position).options(joinedload(Position.orders)).where(Position.account_id == account.account_id).order_by(Position.created_date.desc())
+    result = await db.execute(query)
+    positions = result.unique().scalars().all()
+    for position in positions:
+            position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
+    return position
 
-    query = select(Position).where(Position.account_id == account.account_id,
-                                   Position.position_id == position_id).order_by(Position.created_date.desc())
-    if position_id:
-        query = query.where(
-            Order.account_id == account.account_id,
-            Order.position_id == position_id)
-    data = await db.execute(query)
-    return data.scalars().all()
+
 
 
 from sqlalchemy.orm import joinedload

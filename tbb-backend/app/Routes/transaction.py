@@ -7,7 +7,7 @@ from app.Database.base import get_db, AsyncSession
 from app.Schemas.Transaction import CreateTransaction
 from app.Core.utility import get_account_from_token
 from app.Models.models import Transaction,Account
-
+from app.Models.models import TransactionType
 transaction_route =APIRouter()
 
 @transaction_route.post("/create_transaction")
@@ -25,15 +25,15 @@ async def create_new_transaction(transaction_data:CreateTransaction,
     )
 
     # Update account balance
-    if transaction.transaction_type == "Deposit":
-        account.account_balance += transaction.transaction_amount
-    elif transaction.transaction_type == "Withdrawal":
-        if account.account_balance >= transaction.transaction_amount:
-            account.account_balance -= transaction.transaction_amount
+    if transaction.transaction_type == TransactionType.DEPOSIT:
+        account.balance += transaction.transaction_amount
+    elif transaction.transaction_type == TransactionType.WITHDRAW:
+        if account.balance >= transaction.transaction_amount:
+            account.balance -= transaction.transaction_amount
         else:
             return {"status": "error", "message": "Insufficient funds"}
-
-    # Add transaction and updated account to the database
+    
+    print(account.balance)
     db.add(transaction)
     db.add(account)
     await db.commit()
@@ -53,4 +53,4 @@ async def get_all_transactions( account: Account = Depends(get_account_from_toke
                                 db:AsyncSession =Depends(get_db)):
     result = await db.execute(select(Transaction).where(Transaction.account_id==account.account_id))
     transaction_list = result.scalars().all()
-    return transaction_list
+    return {"transaction_list":transaction_list,"total_balance":account.balance}
