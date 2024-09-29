@@ -59,7 +59,7 @@ async def create_new_order(
             "quantity": request.quantity,
             "created_by": request.created_by
         }
-        if request.order_side == OrderSide.BUY and order_margin > account.balance:
+        if order_margin > account.balance:
                 raise Exception("Insufficient balance to place the order")
 
         if request.order_side == OrderSide.BUY:
@@ -100,7 +100,7 @@ async def create_new_order(
         db.rollback()
         raise TBException(
             message=str(e),
-            resolution="Try Again",
+            resolution=" An error occurred during creating order Try Again",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -121,8 +121,12 @@ async def create_stoploss_order(
             Position.position_status == PositionStatus.PENDING
         ))
 
+
         if not position:
             raise Exception("Position not found")
+        
+
+
         stop_order = await db.scalar(select(Order).where(
             Order.position_id == position.position_id,
             or_(
@@ -183,43 +187,61 @@ async def create_stoploss_order(
     
 
 @order_route.post("/update_quantity_order/")
-async def add_quantity_in_position(
-    request:UpdateQuantityOrder,
+async def update_quantity_order(
+    request: UpdateQuantityOrder,
     account: Account = Depends(get_account_from_token), 
-    db: AsyncSession = Depends(get_db) 
-    )->TBResponse:
+    db: AsyncSession = Depends(get_db)
+) -> TBResponse:
     """
-    Quantity Add Order:
+    Quantity Update Order:
     - Adds quantity to an existing position.
     - Updates the position's average price and margin accordingly.
-    - create new order 
+    - Creates a new order.
     """
     try:
+        # Fetch the position based on position_id and status
         position = await db.scalar(select(Position).where(
-                Position.position_id == request.position_id,
-                Position.position_status == PositionStatus.PENDING
-            ))
-        if position is None:
-             raise Exception("Position not Found!")
-        order_margin = request.quantity * request.price
-        
-        if request.order_side == OrderSide.BUY:
-                position.buy_quantity += request.quantity
-                position.buy_margin += order_margin
-                position.buy_average = (
-                    (position.buy_average * (position.buy_quantity - request.quantity) + request.price * request.quantity) /
-                    position.buy_quantity
-                )
-                account.balance -= order_margin
-        elif request.order_side == OrderSide.SELL:
-                position.sell_quantity += request.quantity
-                position.sell_margin += order_margin
-                position.sell_average = (
-                    (position.sell_average * (position.sell_quantity - request.quantity) + request.price * request.quantity) /
-                    position.sell_quantity
-                )
-                account.balance += order_margin
+            Position.position_id == request.position_id,
+            Position.position_status == PositionStatus.PENDING
+        ))
 
+        if position is None:
+            raise Exception("Position not found!")
+
+        order_margin = request.quantity * request.price
+
+        # Check for sufficient balance
+        if order_margin > account.balance and position.position_side == request.order_side:
+            raise Exception("Insufficient balance to place the order")
+
+        # Update Position
+        if request.order_side == OrderSide.BUY:
+            position.buy_quantity += request.quantity
+            position.buy_margin += order_margin
+            position.buy_average = round((
+                (position.buy_average * (position.buy_quantity - request.quantity) + request.price * request.quantity) /
+                position.buy_quantity
+            ), 2)
+
+        elif request.order_side == OrderSide.SELL:
+            position.sell_quantity += request.quantity
+            position.sell_margin += order_margin
+            position.sell_average = round((
+                (position.sell_average * (position.sell_quantity - request.quantity) + request.price * request.quantity) /
+                position.sell_quantity
+            ), 2)
+
+        # Update PnL if position side changes
+        if position.position_side != request.order_side:
+            position.pnl_total = round(
+                (abs(position.buy_average - position.sell_average)) *
+                (abs((position.buy_quantity + position.sell_quantity) / 2)), 2
+            )
+
+        # Update Account Balance
+        account.balance += -order_margin if position.position_side == request.order_side else order_margin
+
+        # Check if it's a full exit
         if position.buy_quantity == position.sell_quantity and position.position_status == PositionStatus.PENDING:
             pnl = (position.sell_average - position.buy_average) * position.sell_quantity
             position.pnl_total += pnl
@@ -230,45 +252,44 @@ async def add_quantity_in_position(
             msg = f"Quantity added to {request.order_side} position"
             order_type = OrderTypes.UpdateQtyOrder
 
+        # Create a new order
         qty_update_order = {
-                "order_id": generate_unique_id("ORD"),
-                "account_id": account.account_id,
-                "position_id": position.position_id,
-                "stock_symbol": position.stock_symbol,
-                "order_types": order_type,
-                "order_side": request.order_side,
-                "product_type": "CNC",
-                "stop_order_hit": None,
-                "price": request.price,
-                "quantity": request.quantity,
-                "created_by": request.created_by
-            }
+            "order_id": generate_unique_id("ORD"),
+            "account_id": account.account_id,
+            "position_id": position.position_id,
+            "stock_symbol": position.stock_symbol,
+            "order_types": order_type,
+            "order_side": request.order_side,
+            "product_type": "CNC",
+            "stop_order_hit": None,
+            "price": request.price,
+            "quantity": request.quantity,
+            "created_by": request.created_by
+        }
 
-        
         order = Order(**qty_update_order)
-        db.add_all([position, order,account])
+        db.add_all([position, order, account])
         await db.commit()
         await db.refresh(position)
         await db.refresh(order)
         await db.refresh(account)
-        
 
         return TBResponse(
-                message=msg,
-                payload= {
-                    "account": account.account_id,
-                    "order": order.order_id,
-                    "position": position.position_id
-                }
-            )
+            message=msg,
+            payload={
+                "account": account.account_id,
+                "order": order.order_id,
+                "position": position.position_id
+            }
+        )
     except Exception as e:
         await db.rollback()
         raise TBException(
-            message="An error occurred during creating order.",
-            resolution=str(e),
+            message=str(e),
+            resolution="An error occurred during creating order. Try again.",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-         
+
 
     
 @order_route.post("/create_exit_all_order/") 
@@ -377,11 +398,9 @@ async def get_positions(account: Account = Depends(get_account_from_token),
             "positive_pnl_count": sum(1 for p in positions if p.pnl_total > 0),
             "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
             "balance":account.balance,
+            "invested_amount":sum(abs(p.buy_margin-p.sell_margin)  for p in positions if p.position_status == PositionStatus.PENDING),
             "pnl_total":total_pnl_result.scalar() or 0 }
-        return TBResponse(
-             message="Geting all Position details",
-             payload= {"data": positions, "overview": overview}
-        )
+        return {"positions":positions,"overview":overview}
     except Exception as e:
         print(f"Error: {e}")
         return {"error": "Failed to retrieve data"}
