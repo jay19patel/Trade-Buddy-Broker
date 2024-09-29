@@ -21,7 +21,7 @@ class TransactionType(Enum):
 class OrderTypes(Enum):
     NewOrder = "New Order"
     StopLossOrder = "Stoploss Order"
-    QtyAddOrder = "Quantity Add Order"
+    UpdateQtyOrder = "Update Quantity Order"
     ExitOrder = "Exit Order"
 
 class CreateBy(Enum):
@@ -74,7 +74,6 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(String, unique=True, nullable=False)
     account_id = Column(String, ForeignKey('accounts.account_id'), nullable=False)
-    email_id = Column(String, nullable=False)
     transaction_type = Column(sqlEnum(TransactionType), nullable=False, default=TransactionType.DEPOSIT)
     transaction_amount = Column(Float, nullable=False)
     transaction_note = Column(String)
@@ -96,9 +95,7 @@ class Position(Base):
     position_side = Column(sqlEnum(OrderSide), nullable=False, default=OrderSide.BUY)
     product_type = Column(sqlEnum(ProductType), nullable=False, default=ProductType.CNC)
 
-    trailing_activated = Column(Boolean, default=True)
     trailing_count = Column(Integer, default=0)
-    current_price = Column(Float, nullable=False, default=0)
     buy_average = Column(Float, nullable=False, default=0)
     buy_margin = Column(Float, nullable=False, default=0)
     buy_quantity = Column(Integer, nullable=False, default=0)
@@ -139,10 +136,3 @@ class Order(Base):
     account = relationship('Account', back_populates='orders')
     position = relationship('Position', back_populates='orders')
 
-
-class LivePrice(Base):
-    __tablename__ = 'live_prices'
-    stock_symbol = Column(String, primary_key=True, nullable=False)
-    is_holding = Column(Boolean, default=False)
-    price = Column(Float, nullable=False)
-    last_updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

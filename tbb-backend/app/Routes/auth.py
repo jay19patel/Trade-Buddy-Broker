@@ -1,43 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, status,Request
-from fastapi import FastAPI, Response
-from fastapi.responses import JSONResponse
-import logging
-from datetime import timedelta
-from sqlalchemy import select,or_
+from fastapi import status, APIRouter, Depends, Response,Request,BackgroundTasks
 from sqlalchemy.exc import IntegrityError
-import os
-# App
-from app.Database.base import get_db, AsyncSession
-from app.Models.models import Account
-from app.Schemas.Account import CreateAccount, LoginAccount
-from app.Core.security import generate_hash_password, check_hash_password, create_access_token,generate_unique_custom_id
+from sqlalchemy import select, or_
+from datetime import timedelta,datetime
+import logging
+from fastapi.templating import Jinja2Templates
+import asyncio
+# APP
+from app.Database.base import AsyncSession, get_db
+from app.Schemas.auth_schema import Registration, Login
+from app.Models.model import Account
+from app.Core.responseBytb import TBException, TBResponse
+from app.Core.security import generate_hash_password, check_hash_password, create_access_token, generate_unique_account_id,decode_token,get_account_from_token
 from app.Core.config import setting
 from app.Services.email import email_send_access_token
-from app.Core.utility import get_account_from_token
-
-# Logging
-# logging.basicConfig(filename=f"{os.getcwd()}/Records/StrategyManager.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-from fastapi.templating import Jinja2Templates
-templates = Jinja2Templates(directory="app/templates")
 auth_rout = APIRouter()
+templates = Jinja2Templates(directory="app/html_templates")
 
-@auth_rout.post("/create_account")
-async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_db)):
+
+@auth_rout.post("/registration")
+async def registration(request: Registration, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)) -> TBResponse:
     try:
         account = Account(
-        email_id=request.email_id,
-        account_id=await generate_unique_custom_id(),
-        password=generate_hash_password(password=request.password),
-        full_name=request.full_name,
-        max_trad_per_day=request.max_trad_per_day,
-        base_stoploss=request.base_stoploss,
-        base_target=request.base_target,
-        trailing_status=request.trailing_status,
-        trailing_stoploss=request.trailing_stoploss,
-        trailing_target=request.trailing_target,
-        description=request.description
+            email_id=request.email_id,
+            account_id=await generate_unique_account_id(),
+            password=generate_hash_password(password=request.password),
+            full_name=request.full_name,
+            max_trad_per_day=request.max_trad_per_day,
+            base_stoploss=request.base_stoploss,
+            base_target=request.base_target,
+            trailing_status=request.trailing_status,
+            trailing_stoploss=request.trailing_stoploss,
+            trailing_target=request.trailing_target,
+            description=request.description
         )
-        
         db.add(account)
         await db.commit()
         await db.refresh(account)
@@ -46,75 +41,109 @@ async def create_account(request: CreateAccount, db: AsyncSession = Depends(get_
                                                         "AccountEmail": account.email_id,
                                                         "AccountRole": account.role
                                                         }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
-                                                    
-        # await email_send_access_token([account.email_id],access_token)
-        return {
-            "status": "success",
-            "message": "Registration successful",
-            "payload": {"account": account.account_id},
-        }
-    except IntegrityError as e:
+        loop = asyncio.get_event_loop()                  
+        background_tasks.add_task(lambda: loop.create_task(email_send_access_token([account.email_id],access_token)))
+        return TBResponse(
+            message="Registration Successful",
+            payload={
+                "account_id": account.account_id,
+                "email_id": account.email_id,
+                "full_name": account.full_name
+            }
+        )
+        
+    
+    except IntegrityError:
         await db.rollback()
-        raise HTTPException(detail=f"Email already exists", status_code=status.HTTP_400_BAD_REQUEST)
+        raise TBException(
+            message="The provided email address is already registered.",
+            resolution="Please use a different email address or reset your password.",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
-@auth_rout.post("/login_account")  
-async def login_account(response: Response,request: LoginAccount, db: AsyncSession = Depends(get_db)):
+    except Exception as e:
+        await db.rollback()
+        raise TBException(
+            message="An unexpected error occurred during registration.",
+            resolution=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@auth_rout.post("/login")
+async def login_account(response: Response,
+                        request: Login, 
+                        db: AsyncSession = Depends(get_db)) -> TBResponse:
     try:
         result = await db.execute(select(Account).where(
-            or_(Account.email_id == request.user_id,Account.account_id==request.user_id)
-            ))
+            or_(Account.email_id == request.user_id, Account.account_id == request.user_id)
+        ))
         account = result.scalars().first()
         if not account:
-            raise HTTPException(detail="User not found", status_code=status.HTTP_404_NOT_FOUND)
+            raise TBException(message="User not found",
+                              resolution="Try with another email id or Account id",
+                              status_code=status.HTTP_404_NOT_FOUND)
         
         if not check_hash_password(password=request.password, hashed_password=account.password):
-            raise HTTPException(detail="Invalid password", status_code=status.HTTP_400_BAD_REQUEST)
+            raise TBException(message="Invalid password",
+                              resolution="Try Again",
+                              status_code=status.HTTP_403_FORBIDDEN)
         
         if not account.email_verified:
-            raise HTTPException(detail="Email not verified. Check your email.", status_code=status.HTTP_400_BAD_REQUEST)
-        
+            raise TBException(message="Email not verified. Check your email.",
+                              resolution="Check our email and verify your email.",
+                              status_code=status.HTTP_403_FORBIDDEN)
+
         access_token = create_access_token(payload={
             "AccountId": account.account_id,
             "AccountEmail": account.email_id,
             "AccountRole": account.role
-        }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
+        }, expiry=timedelta(seconds=setting.ACCESS_TOKEN_EXPIRY))
 
-        # response.set_cookie(
-        #             key="access_token", 
-        #             value=access_token, 
-        #             httponly=True, 
-        #             samesite="Lax",
-        #             secure=True,
-        #             max_age=86400
-        #         )
-        # response.set_cookie(
-        #             key="full_name", 
-        #             value=account.full_name, 
-        #             httponly=True, 
-        #             samesite="Lax",
-        #             secure=True,
-        #             max_age=86400
-        #         )
-        return {
-            "message": "Login successful",
-            "payload": {
+        # Set cookies securely
+        response.set_cookie(
+            key="access_token", 
+            value=access_token, 
+            httponly=True, 
+            samesite="Lax",
+            secure=setting.USE_HTTPS,  # Conditional based on your setting
+            max_age=setting.ACCESS_TOKEN_EXPIRY
+        )
+        response.set_cookie(
+            key="full_name", 
+            value=account.full_name, 
+            httponly=True, 
+            samesite="Lax",
+            secure=setting.USE_HTTPS,  # Conditional based on your setting
+            max_age=setting.ACCESS_TOKEN_EXPIRY
+        )
+        return TBResponse(
+            message="Login successful",
+            payload={
                 "account": account.account_id,
                 "role": account.role,
                 "access_token": access_token,
-                "full_name":account.full_name,
+                "full_name": account.full_name,
             }
-        }
+        )
+    except TBException as tb_exc:
+        raise tb_exc  # Re-raise known exceptions for proper handling
     except Exception as e:
-        raise HTTPException(detail=f"{e}", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+        raise TBException(
+            message="An unexpected error occurred during login.",
+            resolution=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @auth_rout.get("/account", status_code=status.HTTP_201_CREATED)
-async def private_page(account:Account = Depends(get_account_from_token), db: AsyncSession = Depends(get_db)):
+async def account_detail(account:Account = Depends(get_account_from_token), db: AsyncSession = Depends(get_db)):
     return {
         "msg": "Welcome Account User",
         "account": account
     }
 
-from app.Core.security import decode_token
+
+
 @auth_rout.get("/verify_email/verification/{AccessToken}", status_code=status.HTTP_200_OK)
 async def verify_email_verification(AccessToken,
                                     request: Request,
@@ -130,29 +159,36 @@ async def verify_email_verification(AccessToken,
         return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
     return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
 
+
 @auth_rout.get("/verify_email/send_token/{email}", status_code=status.HTTP_200_OK)
-async def verify_email_send_token(email,db: AsyncSession = Depends(get_db)):
+async def verify_email_send_token(email,
+                                  background_tasks : BackgroundTasks,
+                                  db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Account).where(Account.email_id == email))
         account = result.scalars().first()
         if not account:
-            raise HTTPException(detail="email id is not valid",status_code=404)
+            raise TBException(message="email id is not valid",
+                              resolution="Try Again.",
+                              status_code= status.HTTP_404_NOT_FOUND)
         if not account.email_verified:
             access_token = create_access_token(payload={
                                                         "AccountId": account.account_id,
                                                         "AccountEmail": account.email_id,
                                                         "AccountRole": account.role
-                                                        }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY))
-                                                    
-            # await email_send_access_token([account.email_id],access_token)
-            return {"message": "Email sent successfully", 
-                    "payload": {"access_token": str(access_token),
-                                "link_for_verification":f"http://localhost:8080/auth/verify_email/verification/{access_token}"                            
-                                }}
-            # return {"message": "Email sent successfully"}
+                                                        }, expiry=timedelta(hours=setting.ACCESS_TOKEN_EXPIRY)) 
+            loop = asyncio.get_event_loop()                  
+            background_tasks.add_task(lambda: loop.create_task(email_send_access_token([account.email_id],access_token)))
+            return TBResponse(
+                message= "Email sent successfully",
+                payload= {"access_token": str(access_token),
+                            "link_for_verification":f"http://localhost:8080/auth/verify_email/verification/{access_token}"                            
+                            })
         return {"message": "Email Alredy Verified"}
     except Exception as e:
-        # raise HTTPException(detail=e,status_code=404)
-        print("Error :",e)
-        return e
+        raise TBException(
+            message="An error occurred during creating order.",
+            resolution=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 

@@ -26,7 +26,7 @@ async def email_send_access_token(emails: List[str], access_token: str) -> JSONR
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Email Verification</title>
+                <title>Email Verification for Trade Buddy</title>
             </head>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -35,7 +35,7 @@ async def email_send_access_token(emails: List[str], access_token: str) -> JSONR
                             <table role="presentation" width="100%" max-width="600px" cellspacing="0" cellpadding="0" border="0" style="margin: auto;">
                                 <tr>
                                     <td style="padding: 40px 30px; background-color: #ffffff;">
-                                        <h1 style="color: #333333; font-size: 24px; margin-bottom: 20px;">Email Verification</h1>
+                                        <h1 style="color: #333333; font-size: 24px; margin-bottom: 20px;">Email Verification for Trade Buddy</h1>
                                         <p style="color: #666666; font-size: 16px; margin-bottom: 30px;">
                                             Thank you for signing up! Please click the button below to verify your email address and complete your registration.
                                         </p>
@@ -67,6 +67,7 @@ async def email_send_access_token(emails: List[str], access_token: str) -> JSONR
 
         fm = FastMail(conf)
         await fm.send_message(message)
-        print("EMAIL SENT -------------")
+        print(f"EMAIL Send success to {emails}")
     except Exception as e:
         print("Something went wrong", e)
+

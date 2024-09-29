@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from app.Models.models import CreateBy,OrderSide,StockType
+from app.Models.model import CreateBy,OrderSide,StockType
 
 class CreateNewOrder(BaseModel):
     stock_symbol:str
@@ -19,7 +19,7 @@ class CreateStoplossOrder(BaseModel):
     quantity: int
     created_by: CreateBy 
 
-class AddQuantityOrder(BaseModel):
+class UpdateQuantityOrder(BaseModel):
     position_id: str
     order_side:OrderSide
     quantity: int
@@ -28,8 +28,6 @@ class AddQuantityOrder(BaseModel):
 
 class CreateExitOrder(BaseModel):
     position_id: str
-    order_side:OrderSide
-    quantity: int
     price: float
     created_by: CreateBy
     

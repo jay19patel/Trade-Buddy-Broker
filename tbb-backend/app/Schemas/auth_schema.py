@@ -1,7 +1,9 @@
+
+
 from pydantic import BaseModel,EmailStr
 from typing import List
 
-class CreateAccount(BaseModel):
+class Registration(BaseModel):
     email_id:EmailStr
     password:str
     full_name:str
@@ -13,7 +15,6 @@ class CreateAccount(BaseModel):
     trailing_target:float =10.0
     description:str
 
-class LoginAccount(BaseModel):
-    user_id:EmailStr | str
+class Login(BaseModel):
+    user_id:str
     password:str
-
