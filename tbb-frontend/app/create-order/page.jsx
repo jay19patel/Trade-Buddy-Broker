@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import Cookies from 'js-cookie'
+import { useRouter } from 'next/navigation'
 
 
 export default function StockSearchApp() {
@@ -22,6 +23,8 @@ export default function StockSearchApp() {
   const dropdownRef = useRef(null)
   const inputRef = useRef(null)
   const { toast } = useToast()
+
+  const router = useRouter()
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -52,7 +55,7 @@ export default function StockSearchApp() {
   const fetchSearchResults = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`http://localhost:8080/home/search?q=${searchTerm}`)
+      const response = await fetch(`http://localhost:8080/live_data/search?q=${searchTerm}`)
       const data = await response.json() 
       setSearchResults(data)
       setShowDropdown(true)
@@ -69,7 +72,7 @@ export default function StockSearchApp() {
 
     try {
       const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
-      const response = await fetch(`http://localhost:8080/home/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`)
+      const response = await fetch(`http://localhost:8080/live_data/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`)
       const detailData = await response.json()
       setSelectedStock(detailData)
     } catch (error) {
@@ -115,6 +118,7 @@ export default function StockSearchApp() {
           duration: 5000,
         });
         setSelectedStock(data);
+        router("/")
       } else {
         const errorData = await response.json(); // Attempt to get error message from server
         console.error("Error creating order:", errorData);

@@ -52,7 +52,7 @@ export default function TradingTable({isLoading,trades}) {
     switch (orderType) {
       case 'Exit Order':
         return 'bg-red-100'
-      case 'Quantity Add Order':
+      case 'Update Quantity Order':
         return 'bg-blue-100'
       case 'New Order':
         return 'bg-green-100'

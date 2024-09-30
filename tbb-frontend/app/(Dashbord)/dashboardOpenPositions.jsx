@@ -49,7 +49,7 @@ export default function OpenPositionsTable({ isLoading, trades, onDataChange }) 
         "created_by": "Menual"
       }
       const token = Cookies.get("access_token");
-      const response = await fetch(`http://127.0.0.1:8080/order/create_exit_order/`, {
+      const response = await fetch(`http://127.0.0.1:8080/order/create_exit_all_order/`, {
         method: 'POST',
         body: JSON.stringify(sendBody),
         headers: {
@@ -187,7 +187,7 @@ export default function OpenPositionsTable({ isLoading, trades, onDataChange }) 
     switch (orderType) {
       case 'Exit Order':
         return 'bg-red-100'
-      case 'Quantity Add Order':
+      case 'Update Quantity Order':
         return 'bg-blue-100'
       case 'New Order':
         return 'bg-green-100'
