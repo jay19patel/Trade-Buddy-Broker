@@ -83,7 +83,7 @@ export default function EnhancedPositionBook() {
     switch (orderType) {
       case 'Exit Order':
         return 'bg-red-100'
-      case 'Quantity Add Order':
+      case 'Update Quantity Order':
         return 'bg-blue-100'
       case 'New Order':
         return 'bg-green-100'
@@ -162,10 +162,10 @@ export default function EnhancedPositionBook() {
                       {position.position_side}
                     </TableCell>
                     <TableCell>{position.buy_quantity}</TableCell>
-                    <TableCell>₹{position.buy_average}</TableCell>
-                    <TableCell>₹{position.sell_average}</TableCell>
+                    <TableCell>₹{position.buy_average.toFixed(2)}</TableCell>
+                    <TableCell>₹{position.sell_average.toFixed(2)}</TableCell>
                     <TableCell className={position.pnl_total > 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
-                      ₹{position.pnl_total}
+                      ₹{position.pnl_total.toFixed(2)}
                     </TableCell>
                     <TableCell>{position.position_status}</TableCell>
                     <TableCell>{position.stock_type}</TableCell>
@@ -249,7 +249,7 @@ export default function EnhancedPositionBook() {
                     {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price.toFixed(2) || 'N/A'}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
