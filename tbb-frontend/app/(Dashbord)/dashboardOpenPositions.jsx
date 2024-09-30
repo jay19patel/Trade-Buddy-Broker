@@ -1,21 +1,24 @@
 'use client'
-import { useState, useEffect } from 'react'
+
+import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, BookOpen, X ,Edit} from "lucide-react"
+import { ChevronLeft, ChevronRight, BookOpen, X, Edit } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useToast } from '@/hooks/use-toast'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Cookies from 'js-cookie'
 
-export default function TradingTable({isLoading,trades}) {
+export default function OpenPositionsTable({ isLoading, trades, onDataChange }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedTrade, setSelectedTrade] = useState(null)
   const [showOrderDialog, setShowOrderDialog] = useState(false)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+  const [orderType, setOrderType] = useState("BUY")
   const { toast } = useToast()
   const tradesPerPage = 5
 
@@ -37,51 +40,47 @@ export default function TradingTable({isLoading,trades}) {
 
   const handleExit = async (trade) => {
     try {
-      // Fetch Live Price 
-
       const sendBody = {
-          "position_id": trade.position_id,
-          "order_side": trade.position_side,
-          "quantity": trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity,
-          "price": trade.position_status === 'BUY' ? trade.buy_average : 
-          trade.position_status === 'SELL' ? trade.sell_average : 
-          trade.current_price,
-          "created_by": "Menual"
+        "position_id": trade.position_id,
+        "order_side": trade.position_side,
+        "quantity": trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity,
+        "price": trade.position_status === 'BUY' ? trade.buy_average : 
+          trade.position_status === 'SELL' ? trade.sell_average :0,
+        "created_by": "Menual"
       }
       const token = Cookies.get("access_token");
       const response = await fetch(`http://127.0.0.1:8080/order/create_exit_order/`, {
         method: 'POST',
-        body:JSON.stringify(sendBody),
+        body: JSON.stringify(sendBody),
         headers: {
           'accept': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' // Ensure Content-Type is set
+          'Content-Type': 'application/json'
         },
-
       })
       if (response.ok) {
         const data = await response.json();
         toast({
           title: "Order Created Successfully",
           description: data.message,
-          duration: 3000,
+          duration: 5000,
         });
+        onDataChange(); // Trigger dashboard data refresh
       } else {
-        const errorData = await response.json(); // Attempt to get error message from server
+        const errorData = await response.json();
         console.error("Error creating order:", errorData);
         toast({
           title: "Order Creation Failed",
-          description: errorData.detail || "An error occurred while exit the order.",
-          duration: 3000,
+          description: errorData.detail || "An error occurred while exiting the order.",
+          duration: 5000,
         });
       }
-    
     } catch (error) {
       console.error("Fetch error:", error);
       toast({
         title: "Request Error",
         description: "An error occurred while sending the exit request.",
-        duration: 3000,
+        duration: 5000,
       });
     } 
   }
@@ -89,11 +88,11 @@ export default function TradingTable({isLoading,trades}) {
   const handleUpdateOrder = async (data) => {
     try {
       const bodySend = {
-          "position_id": data.position_id,
-          "stoploss_price": data.stoploss,
-          "target_price": data.target,
-          "quantity": data.quantity,
-          "created_by": "Menual"
+        "position_id": data.position_id,
+        "stoploss_price": data.stoploss,
+        "target_price": data.target,
+        "quantity": data.quantity,
+        "created_by": "Menual"
       }
       const token = Cookies.get("access_token");
       const response = await fetch(`http://127.0.0.1:8080/order/stoploss_order/`, {
@@ -110,22 +109,26 @@ export default function TradingTable({isLoading,trades}) {
         toast({
           title: "Order Updated Successfully",
           description: responseData.message,
-          duration: 3000,
+          duration: 5000,
         });
+        setShowUpdateDialog(false)
+        onDataChange(); // Trigger dashboard data refresh
       } else {
         const errorData = await response.json();
+        setShowUpdateDialog(false)
         toast({
-          title: "Order Update Failed",
-          description: errorData.detail || "An error occurred while updating the order.",
-          duration: 3000,
+          title: errorData.message,
+          description: errorData.resolution || "An error occurred while updating the order.",
+          duration: 5000,
         });
       }
     } catch (error) {
       console.error("Update error:", error);
+      setShowUpdateDialog(false)
       toast({
         title: "Update Error",
-        description: "An error occurred while sending the update request.",
-        duration: 3000,
+        description: error,
+        duration: 5000,
       });
     }
   }
@@ -134,13 +137,13 @@ export default function TradingTable({isLoading,trades}) {
     try {
       const bodySend = {
         "position_id": data.position_id,
-        "order_side": "BUY",
+        "order_side":orderType,
         "quantity": data.quantity,
         "price": data.price,
         "created_by": "Menual"
-    }
+      }
       const token = Cookies.get("access_token");
-      const response = await fetch(`http://127.0.0.1:8080/order/quantity_add_order/`, {
+      const response = await fetch(`http://127.0.0.1:8080/order/update_quantity_order/`, {
         method: 'POST',
         body: JSON.stringify(bodySend),
         headers: {
@@ -154,22 +157,28 @@ export default function TradingTable({isLoading,trades}) {
         toast({
           title: "Quantity Added Successfully",
           description: responseData.message,
-          duration: 3000,
+          duration: 5000,
         });
+        setShowUpdateDialog(false)
+        onDataChange(); // Trigger dashboard data refresh
       } else {
         const errorData = await response.json();
+        setShowUpdateDialog(false)
+
         toast({
-          title: "Adding Quantity Failed",
-          description: errorData.detail || "An error occurred while adding quantity.",
-          duration: 3000,
+          title: errorData?.message,
+          description: errorData.resolution || "An error occurred while adding quantity.",
+          duration: 5000,
         });
       }
     } catch (error) {
       console.error("Add quantity error:", error);
+      setShowUpdateDialog(false)
+
       toast({
         title: "Add Quantity Error",
         description: "An error occurred while sending the add quantity request.",
-        duration: 3000,
+        duration: 5000,
       });
     }
   }
@@ -184,7 +193,6 @@ export default function TradingTable({isLoading,trades}) {
         return 'bg-green-100'
       case 'Stoploss Order':
         return 'bg-yellow-100'
-
       default:
         return ''
     }
@@ -193,6 +201,7 @@ export default function TradingTable({isLoading,trades}) {
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>
   }
+
   return (
     <div className="w-full max-w-7xl mx-auto p-2 sm:p-4 lg:p-3">
       <Card className="shadow-lg bg-white">
@@ -206,7 +215,7 @@ export default function TradingTable({isLoading,trades}) {
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Symbol</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Side</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Price</TableHead>
-                <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
+                  <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Quantity</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Stoploss</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Target</TableHead>
                   <TableHead className="py-3 px-4 border border-gray-200 font-semibold">Margin</TableHead>
@@ -221,27 +230,22 @@ export default function TradingTable({isLoading,trades}) {
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{trade.stock_symbol}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
                       <span className="px-2 py-1 rounded-full bg-green-500 text-white text-xs">
-                      {trade.position_side}
+                        {trade.position_side}
                       </span>
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
-                    ₹{trade.position_status === 'BUY' ? trade.buy_average : 
-                        trade.position_status === 'SELL' ? trade.sell_average : 
-                        trade.current_price}
+                      ₹{trade.position_side === 'BUY' ? trade.buy_average : 
+                        trade.position_side === 'SELL' ? trade.sell_average:null}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
                       {trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity}
                     </TableCell>
-
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-red-500">₹{trade.stoploss_price}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-green-500">₹{trade.target_price}</TableCell>
-
-
-
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-red-500">₹{trade.stoploss_price.toFixed(2)}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold text-green-500">₹{trade.target_price.toFixed(2)}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
-                    ₹{trade.position_status === 'BUY' ? trade.buy_margin : 
-                        trade.position_status === 'SELL' ? trade.sell_margin : 
-                        trade.buy_margin || trade.sell_margin}
+                      ₹{trade.position_status === 'BUY' ? trade.buy_margin.toFixed(2) : 
+                         trade.position_status === 'SELL' ? trade.sell_margin.toFixed(2) : 
+                         trade.buy_margin.toFixed(2) || trade.sell_margin.toFixed(2)}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">{new Date(trade.created_date).toLocaleString()}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-200">
@@ -251,12 +255,9 @@ export default function TradingTable({isLoading,trades}) {
                           variant="outline"
                           className="bg-gray-100 text-black hover:bg-gray-200"
                           onClick={() => handleOpenOrders(trade)}
-                          
                         >
                           <BookOpen className="h-4 w-4" />
-                          {/* Orders */}
                         </Button>
-
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -264,10 +265,7 @@ export default function TradingTable({isLoading,trades}) {
                           className="bg-blue-100 text-blue-700 hover:bg-blue-200"
                         >
                           <Edit className="h-4 w-4" />
-                          {/* Update */}
                         </Button>
-
-
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -275,7 +273,6 @@ export default function TradingTable({isLoading,trades}) {
                           className="bg-red-100 text-red-900 hover:bg-red-200"
                         >
                           <X className="h-4 w-4" />
-                          {/* Exit */}
                         </Button>
                       </div>
                     </TableCell>
@@ -343,7 +340,7 @@ export default function TradingTable({isLoading,trades}) {
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_id}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{order.order_types}</TableCell>
                     <TableCell className={`py-2 px-4 border border-gray-300 font-semibold ${order.order_side === 'BUY' ? 'text-green-600' : 'text-red-600'}`}>
-                    {order.order_side}
+                      {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
@@ -356,13 +353,13 @@ export default function TradingTable({isLoading,trades}) {
         </DialogContent>
       </Dialog>
 
-
-
       <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
         <DialogContent className="sm:max-w-[425px] bg-gradient-to-r from-blue-50 to-purple-50">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-indigo-800">Update Order</DialogTitle>
-            <DialogTitle className="text-xl font-semibold text-green-800">{selectedTrade?.current_price}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-green-800">Entry Price
+              ₹{selectedTrade?.position_side === 'BUY' ? selectedTrade?.buy_average : 
+                selectedTrade?.position_side === 'SELL' ? selectedTrade?.sell_average:null}</DialogTitle>
           </DialogHeader>
           <Tabs defaultValue="update" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-indigo-100">
@@ -384,24 +381,38 @@ export default function TradingTable({isLoading,trades}) {
               </div>
               <Button onClick={() => handleUpdateOrder({
                 position_id: selectedTrade?.position_id,
-                stoploss: parseFloat((document.getElementById('stoploss')).value),
-                target: parseFloat((document.getElementById('target')).value),
-                quantity: parseInt((document.getElementById('quantity')).value)
+                stoploss: parseFloat(document.getElementById('stoploss').value),
+                target: parseFloat(document.getElementById('target').value),
+                quantity: parseInt(document.getElementById('quantity').value)
               })} className="w-full bg-indigo-500 text-white hover:bg-indigo-600">Update</Button>
             </TabsContent>
+
+
             <TabsContent value="add" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="addOrderType" className="text-primary">Order Type</Label>
+                <Select onValueChange={(value) => setOrderType(value)} defaultValue={orderType}>
+                  <SelectTrigger id="addOrderType" className="border-primary/20 focus:ring-primary">
+                    <SelectValue placeholder="Select order type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="BUY">BUY</SelectItem>
+                    <SelectItem value="SELL">SELL</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="addPrice" className="text-indigo-700">Price</Label>
                 <Input id="addPrice" className="border-indigo-200 focus:border-indigo-500" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="addQuantity" className="text-indigo-700">Quantity</Label>
+                <Label htmlFor="addQuantity" className="text-indigo-700">Quantity </Label>
                 <Input id="addQuantity" className="border-indigo-200 focus:border-indigo-500" />
               </div>
               <Button onClick={() => handleAddQuantity({
                 position_id: selectedTrade?.position_id,
-                price: parseFloat((document.getElementById('addPrice')).value),
-                quantity: parseInt((document.getElementById('addQuantity')).value)
+                price: parseFloat(document.getElementById('addPrice').value),
+                quantity: parseInt(document.getElementById('addQuantity').value)
               })} className="w-full bg-indigo-500 text-white hover:bg-indigo-600">Submit</Button>
             </TabsContent>
           </Tabs>

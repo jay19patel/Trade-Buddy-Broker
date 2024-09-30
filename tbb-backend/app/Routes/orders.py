@@ -16,7 +16,6 @@ from app.Models.model import OrderTypes
 from app.Core.responseBytb import TBException,TBResponse
 order_route = APIRouter()
 
-
 @order_route.post("/new_order/")
 async def create_new_order(
     request: CreateNewOrder,
@@ -208,6 +207,8 @@ async def update_quantity_order(
         if position is None:
             raise Exception("Position not found!")
 
+        if (request.order_side != position.position_side) and (request.quantity > abs(position.buy_quantity-position.sell_quantity)):
+            raise Exception("Quantity not allow try again with another quantity")
         order_margin = request.quantity * request.price
 
         # Check for sufficient balance
@@ -394,12 +395,12 @@ async def get_positions(account: Account = Depends(get_account_from_token),
             "total_positions": len(positions),
             "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
             "closed_positions": sum(1 for p in positions if p.position_status == PositionStatus.COMPLETED),
-            "pnl_todays": sum(p.pnl_total for p in positions),
+            "pnl_todays": round(sum(p.pnl_total for p in positions),2),
             "positive_pnl_count": sum(1 for p in positions if p.pnl_total > 0),
             "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
-            "balance":account.balance,
-            "invested_amount":sum(abs(p.buy_margin-p.sell_margin)  for p in positions if p.position_status == PositionStatus.PENDING),
-            "pnl_total":total_pnl_result.scalar() or 0 }
+            "balance":round(account.balance,2),
+            "invested_amount":round(sum(abs(p.buy_margin-p.sell_margin)  for p in positions if p.position_status == PositionStatus.PENDING),2),
+            "pnl_total":round(total_pnl_result.scalar(),2) or 0 }
         return {"positions":positions,"overview":overview}
     except Exception as e:
         print(f"Error: {e}")

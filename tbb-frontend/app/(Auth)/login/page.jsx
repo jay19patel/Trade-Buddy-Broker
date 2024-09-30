@@ -33,7 +33,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('http://127.0.0.1:8080/auth/login_account', {
+      const response = await fetch('http://127.0.0.1:8080/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,24 +50,24 @@ export default function LoginPage() {
         await Cookies.set("access_token", data.payload.access_token);
         await Cookies.set("full_name", data.payload.full_name);
         toast({
-          title: "Authentication Success",
+          title: data?.message,
           description: "Successfully Logged In",
-          duration: 3000,
+          duration: 5000,
         });
         router.push("/");
       } else {
         const errorData = await response.json();
         toast({
-          title: "Authentication Failed",
-          description: errorData?.message || "An error occurred",
-          duration: 3000,
+          title: errorData?.message,
+          description: errorData?.resolution || "An error occurred",
+          duration: 5000,
         });
       }
     } catch (error) {
       toast({
         title: "Authentication Failed",
         description: "An error occurred",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -88,7 +88,7 @@ export default function LoginPage() {
         toast({
           title: "Email Verification Success",
           description: "Verification email sent successfully",
-          duration: 3000,
+          duration: 5000,
           })
           setIsVerifying(false)
         }
@@ -96,7 +96,7 @@ export default function LoginPage() {
       toast({
         title: "Verification Failed",
         description: error.response?.data?.message || "An error occurred",
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setIsVerifying(false)

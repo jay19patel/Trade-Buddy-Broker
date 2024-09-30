@@ -112,7 +112,7 @@ export default function StockSearchApp() {
         toast({
           title: "Order Created Successfully",
           description: data.message,
-          duration: 3000,
+          duration: 5000,
         });
         setSelectedStock(data);
       } else {
@@ -121,7 +121,7 @@ export default function StockSearchApp() {
         toast({
           title: "Order Creation Failed",
           description: errorData.detail || "An error occurred while creating the order.",
-          duration: 3000,
+          duration: 5000,
         });
       }
     
@@ -130,7 +130,7 @@ export default function StockSearchApp() {
       toast({
         title: "Request Error",
         description: "An error occurred while sending the order request.",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       // This will run regardless of success or failure
@@ -139,7 +139,7 @@ export default function StockSearchApp() {
       toast({
         title: "Order Submitted",
         description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.name} has been placed.`,
-        duration: 3000,
+        duration: 5000,
       });
     }
     

@@ -99,9 +99,9 @@ export default function TradingTable({isLoading,trades}) {
                     <TableCell className="py-2 px-4 border border-gray-200 font-semibold">
                       {trade.position_side === "BUY" ? trade.buy_quantity : trade.sell_quantity}
                     </TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">₹{trade.buy_average}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">₹{trade.sell_average}</TableCell>
-                    <TableCell className={`py-2 px-4 border border-gray-200 font-bold ${trade.pnl_total > 0 ? 'text-green-500' : 'text-red-500'}`}> ₹{trade.pnl_total}</TableCell>                  
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">₹{trade.buy_average.toFixed(2)}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-200 font-semibold">₹{trade.sell_average.toFixed(2)}</TableCell>
+                    <TableCell className={`py-2 px-4 border border-gray-200 font-bold ${trade.pnl_total > 0 ? 'text-green-500' : 'text-red-500'}`}> ₹{trade.pnl_total.toFixed(2)}</TableCell>                  
                     <TableCell className="py-2 px-4 border border-gray-200">
                       <div className="flex space-x-2">
                         <Button 
@@ -181,7 +181,7 @@ export default function TradingTable({isLoading,trades}) {
                     {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price.toFixed(2) || 'N/A'}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}

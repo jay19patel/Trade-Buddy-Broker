@@ -98,24 +98,7 @@ async def login_account(response: Response,
             "AccountEmail": account.email_id,
             "AccountRole": account.role
         }, expiry=timedelta(seconds=setting.ACCESS_TOKEN_EXPIRY))
-
-        # Set cookies securely
-        response.set_cookie(
-            key="access_token", 
-            value=access_token, 
-            httponly=True, 
-            samesite="Lax",
-            secure=setting.USE_HTTPS,  # Conditional based on your setting
-            max_age=setting.ACCESS_TOKEN_EXPIRY
-        )
-        response.set_cookie(
-            key="full_name", 
-            value=account.full_name, 
-            httponly=True, 
-            samesite="Lax",
-            secure=setting.USE_HTTPS,  # Conditional based on your setting
-            max_age=setting.ACCESS_TOKEN_EXPIRY
-        )
+        
         return TBResponse(
             message="Login successful",
             payload={

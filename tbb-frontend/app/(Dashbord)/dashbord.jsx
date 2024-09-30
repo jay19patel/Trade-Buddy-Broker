@@ -1,121 +1,98 @@
+'use client'
 
-"use client"
-import Cookies from 'js-cookie'; 
-import { Divide } from "lucide-react";
-import DashbordCount from "./dashbordCount";
-import OpenPositionsTable from "./dashbordOpenPositions"
-import ClosePositionsTable from "./dashbordClosePositions";
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useToast } from "@/hooks/use-toast"
+import DashboardCount from "./dashboardCount"
+import OpenPositionsTable from "./dashboardOpenPositions"
+import ClosePositionsTable from "./dashboardClosePositions"
+import Cookies from 'js-cookie'
 
 export default function Dashboard() {
-
   const { toast } = useToast()
   const [openTrades, setOpenTrades] = useState([])
   const [closeTrades, setCloseTrades] = useState([])
-  const [dashBordCount, setDashBordCount] = useState([
-    {
-      title: "Total Position",
-      counts: 0,
-    },
-    {
-      title: "Open/Close",
-      counts: 0,
-    },
-    {
-      title: "Positive/Negative",
-      counts: 0,
-    },
-    {
-      title: "Today's P&N",
-      counts: 0,
-    },
-    {
-      title: "Total P&N",
-      counts: 0,
-    },
-    {
-      title: "Balance",
-      counts: 0,
-    },
-    
+  const [dashboardCount, setDashboardCount] = useState([
+    { title: "Total Position", counts: 0 },
+    { title: "Open/Close", counts: "0/0" },
+    { title: "Positive/Negative", counts: "0/0" },
+    { title: "Today's P&N", counts: 0 },
+    { title: "Total P&N", counts: 0 },
+    { title: "Balance", counts: 0 },
   ])
   const [isLoading, setIsLoading] = useState(true)
-  const fetchTrades = async () => {
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
-      // const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBY2NvdW50SWQiOiJLSDJZRCIsIkFjY291bnRFbWFpbCI6ImpheUBnbWFpbC5jb20iLCJBY2NvdW50Um9sZSI6IlVzZXIiLCJleHAiOjIwMzgxNjk5MzQsImp0aSI6IjJiZmEzOWEyLTA0MzMtNDRjYS1hNzlkLTdlM2IyY2ViZDdmNyJ9.78GtirKl3kyHqXmEk_Ntt6FILGUnVVaogbZydD26nRY";
-      // console.log("Cooookies is :",Cookies.get("access_token"))
-      const token  = Cookies.get("access_token")
-
-      const response = await fetch('http://127.0.0.1:8080/order/positions?trade_today=true', {
+      const token = Cookies.get("access_token")
+      const response = await fetch(`http://127.0.0.1:8080/order/positions`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-      });
+      })
+
       if (!response.ok) {
-        throw new Error('Failed to fetch trades')
+        throw new Error('Failed to fetch dashboard data')
       }
+
       const data = await response.json()
-      const OpenPositionList = data.data.filter((n) => n.position_status === "Pending")
-      const ClosePositionList = data.data.filter((n) => n.position_status === "Completed")
-      setOpenTrades(OpenPositionList)
-      setCloseTrades(ClosePositionList)
-      const DashbordConts = [
-        {
-          title: "Total Position",
-          counts: data.overview.total_positions,
-        },
-        {
-          title: "Open/Close",
-          counts: `${data.overview.open_positions}/${data.overview.closed_positions}`,
-        },
-        {
-          title: "Positive/Negative",
-          counts: `${data.overview.positive_pnl_count}/${data.overview.negative_pnl_count}`,
-        },
-        {
-          title: " Today's P&N",
-          counts: data.overview.pnl_todays,
-        },
-        {
-          title: "Total P&N",
-          counts: data.overview.pnl_total,
-        },
-        {
-          title: "Balance",
-          counts: data.overview.balance,
-        },
+
+      if (data && data.positions && data.overview) {
+        const openPositionList = data.positions.filter((n) => n.position_status === "Pending")
+        const closePositionList = data.positions.filter((n) => n.position_status === "Completed")
         
-      ];
-
-      setDashBordCount(DashbordConts)
-
+        setOpenTrades(openPositionList)
+        setCloseTrades(closePositionList)
+        
+        // Update dashboard counts
+        setDashboardCount([
+          // { title: "Total Position", counts: Math.round(data.overview.total_positions) || 0 },
+          { title: "Open/Close", counts: `${data.overview.open_positions || 0}/${data.overview.closed_positions || 0}` },
+          { title: "Positive/Negative", counts: `${data.overview.positive_pnl_count || 0}/${data.overview.negative_pnl_count || 0}` },
+          { title: "Today's P&N", counts: Math.round(data.overview.pnl_todays) || 0 },
+          { title: "Total P&N", counts: Math.round(data.overview.pnl_total) || 0 },
+          { title: "Currently Invested",counts: Math.round(data.overview.invested_amount) },
+          { title: "Balance", counts: Math.round(data.overview.balance) || 0 },
+        ])
+      } else {
+        throw new Error('Invalid data structure received from API')
+      }
     } catch (error) {
-      console.error('Error fetching trades:', error)
+      console.error('Error fetching dashboard data:', error)
+      // Reset to default values instead of showing an error
+      setOpenTrades([])
+      setCloseTrades([])
+      setDashboardCount([
+        // { title: "Total Position", counts: 0 },
+        { title: "Open/Close", counts: "0/0" },
+        { title: "Positive/Negative", counts: "0/0" },
+        { title: "Today's P&N", counts: 0 },
+        { title: "Total P&N", counts: 0 },
+        { title: "Currently Invested", counts: 0 },
+        { title: "Balance", counts: 0 },
+      ])
       toast({
-        title: "Error",
-        description: "Failed to fetch trades. Please try again.",
-        variant: "destructive",
+        title: "Data Unavailable",
+        description: "Unable to fetch latest data. Displaying default values.",
+        variant: "warning",
       })
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
-    fetchTrades()
-  }, [])
-
+    fetchData()
+  }, [fetchData])
 
   return (
-
-    <div>
-      <DashbordCount DashbordConts={dashBordCount}/>
-      <OpenPositionsTable  isLoading={isLoading} trades={openTrades} />
-      <ClosePositionsTable  isLoading={isLoading} trades={closeTrades} />
+    <div className="space-y-6">
+      <DashboardCount DashboardCounts={dashboardCount} />
+      <OpenPositionsTable isLoading={isLoading} trades={openTrades} onDataChange={fetchData} />
+      <ClosePositionsTable isLoading={isLoading} trades={closeTrades} />
+      {isLoading && <div className="text-center">Loading...</div>} {/* Loading indicator */}
     </div>
   )
 }
