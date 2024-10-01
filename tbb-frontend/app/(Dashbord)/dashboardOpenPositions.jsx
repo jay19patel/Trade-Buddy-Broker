@@ -45,7 +45,7 @@ export default function OpenPositionsTable({ isLoading, trades, onDataChange }) 
         "order_side": trade.position_side,
         "quantity": trade.position_status === 'PENDING' ? trade.sell_quantity : trade.buy_quantity,
         "price": trade.position_status === 'BUY' ? trade.buy_average : 
-          trade.position_status === 'SELL' ? trade.sell_average :0,
+          trade.position_status === 'SELL' ? trade.sell_average :0 ,
         "created_by": "Menual"
       }
       const token = Cookies.get("access_token");
