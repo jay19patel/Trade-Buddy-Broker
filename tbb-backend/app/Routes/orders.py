@@ -41,7 +41,6 @@ async def create_new_order(
             "stoploss_price":request.stoploss_price,
             "target_price":request.target_price
         }
-
         create_order = {
             "order_id": generate_unique_id("ORD"),
             "account_id": account.account_id,

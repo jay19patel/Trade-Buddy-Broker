@@ -114,7 +114,7 @@ export default function StockSearchApp() {
         const data = await response.json();
         toast({
           title: "Order Created Successfully",
-          description: data.message,
+          description: data?.message,
           duration: 5000,
         });
         setSelectedStock(data);
@@ -124,7 +124,7 @@ export default function StockSearchApp() {
         console.error("Error creating order:", errorData);
         toast({
           title: "Order Creation Failed",
-          description: errorData.detail || "An error occurred while creating the order.",
+          description: errorData?.resolution || "An error occurred while creating the order.",
           duration: 5000,
         });
       }
@@ -140,11 +140,6 @@ export default function StockSearchApp() {
       // This will run regardless of success or failure
       setShowBuyDialog(false);
       setShowSellDialog(false);
-      toast({
-        title: "Order Submitted",
-        description: `${orderDetails.type.toUpperCase()} order for ${orderDetails.stock.name} has been placed.`,
-        duration: 5000,
-      });
     }
     
   }

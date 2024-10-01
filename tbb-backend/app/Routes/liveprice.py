@@ -52,6 +52,7 @@ def fetch_stock_data(search_id,type_of_symbol):
           data = response.json()
           return { "name": data.get("contractDetails").get("displayName"),
                   "ltp": data.get("livePrice").get("ltp"),
+                  "type":"Stocks",
                     'open': data.get("livePrice").get("open"),
                     'high': data.get("livePrice").get("high"),
                     'low': data.get("livePrice").get("low"),
