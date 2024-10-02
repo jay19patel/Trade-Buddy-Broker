@@ -3,6 +3,7 @@ const publicRoutes = ['/login', '/registration', '/hello-world']
 
 export function middleware(request) {
   const accessToken = request.cookies.get('access_token')
+  // console.log(accessToken)
   const { pathname } = request.nextUrl
 
   if (publicRoutes.includes(pathname)) {

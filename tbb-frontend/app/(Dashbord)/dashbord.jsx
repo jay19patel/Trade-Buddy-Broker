@@ -51,9 +51,9 @@ export default function Dashboard() {
           // { title: "Total Position", counts: Math.round(data.overview.total_positions) || 0 },
           { title: "Open/Close", counts: `${data.overview.open_positions || 0}/${data.overview.closed_positions || 0}` },
           { title: "Positive/Negative", counts: `${data.overview.positive_pnl_count || 0}/${data.overview.negative_pnl_count || 0}` },
+          { title: "Currently Invested",counts: Math.round(data.overview.invested_amount) },
           { title: "Today's P&N", counts: Math.round(data.overview.pnl_todays) || 0 },
           { title: "Total P&N", counts: Math.round(data.overview.pnl_total) || 0 },
-          { title: "Currently Invested",counts: Math.round(data.overview.invested_amount) },
           { title: "Balance", counts: Math.round(data.overview.balance) || 0 },
         ])
       } else {
@@ -68,9 +68,9 @@ export default function Dashboard() {
         // { title: "Total Position", counts: 0 },
         { title: "Open/Close", counts: "0/0" },
         { title: "Positive/Negative", counts: "0/0" },
+        { title: "Currently Invested", counts: 0 },
         { title: "Today's P&N", counts: 0 },
         { title: "Total P&N", counts: 0 },
-        { title: "Currently Invested", counts: 0 },
         { title: "Balance", counts: 0 },
       ])
       toast({
