@@ -118,7 +118,7 @@ export default function StockSearchApp() {
           duration: 5000,
         });
         setSelectedStock(data);
-        router("/")
+        router.push("/")
       } else {
         const errorData = await response.json(); // Attempt to get error message from server
         console.error("Error creating order:", errorData);

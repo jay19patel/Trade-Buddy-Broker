@@ -249,7 +249,7 @@ export default function EnhancedPositionBook() {
                     {order.order_side}
                     </TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold ">{order.quantity}</TableCell>
-                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price.toFixed(2) || 'N/A'}</TableCell>
+                    <TableCell className="py-2 px-4 border border-gray-300 font-semibold">₹{order.price?.toFixed(2) || 'N/A'}</TableCell>
                     <TableCell className="py-2 px-4 border border-gray-300 font-semibold">{new Date(order.order_datetime).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
