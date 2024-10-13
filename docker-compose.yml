@@ -1,0 +1,51 @@
+version: "3"
+
+services:
+  postgres:
+    image: postgres
+    container_name: my_postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: tradebuddy
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - tradebuddy_network
+
+  backend:
+    container_name: fastapi_backend
+    build:
+      context: ./tbb-backend
+      dockerfile: backend.Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./tbb-backend:/fastapi_backend
+    # command: ["python3", "run.py"]
+    command: ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - tradebuddy_network
+
+  frontend:
+    container_name: nextjs_frontend
+    build:
+      context: ./tbb-frontend
+      dockerfile: frontend.Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - tradebuddy_network
+      
+volumes:
+  db-data:
+
+networks:
+  tradebuddy_network:
