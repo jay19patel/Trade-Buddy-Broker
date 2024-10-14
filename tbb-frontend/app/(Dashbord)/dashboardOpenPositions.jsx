@@ -76,7 +76,7 @@ export default function OpenPositionsTable({
       };
       const token = Cookies.get("access_token");
       const response = await fetch(
-        `http://127.0.0.1:8080/order/create_exit_all_order/`,
+        `http://localhost:8000/order/create_exit_all_order/`,
         {
           method: "POST",
           body: JSON.stringify(sendBody),
@@ -126,7 +126,7 @@ export default function OpenPositionsTable({
       };
       const token = Cookies.get("access_token");
       const response = await fetch(
-        `http://127.0.0.1:8080/order/stoploss_order/`,
+        `http://localhost:8000/order/stoploss_order/`,
         {
           method: "POST",
           body: JSON.stringify(bodySend),
@@ -179,7 +179,7 @@ export default function OpenPositionsTable({
       };
       const token = Cookies.get("access_token");
       const response = await fetch(
-        `http://127.0.0.1:8080/order/update_quantity_order/`,
+        `http://localhost:8000/order/update_quantity_order/`,
         {
           method: "POST",
           body: JSON.stringify(bodySend),

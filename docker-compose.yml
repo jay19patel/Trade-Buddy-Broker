@@ -26,8 +26,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - ./tbb-backend:/fastapi_backend
-    # command: ["python3", "run.py"]
+      - ./tbb-backend:/backend-app
     command: ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8000"]
     networks:
       - tradebuddy_network
@@ -41,6 +40,7 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    command: ["npm", "run","dev"]
     networks:
       - tradebuddy_network
       
@@ -49,3 +49,4 @@ volumes:
 
 networks:
   tradebuddy_network:
+    driver: bridge

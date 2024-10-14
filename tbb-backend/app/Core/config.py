@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:admin@postgres:5432/tradebuddy"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRY: int = 86400
-    HOST_NAME: str = "0.0.0.0"
+    HOST_NAME: str = "localhost"
     HOST_PORT: int = 8000
     USE_HTTPS: bool = True
 

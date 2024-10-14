@@ -28,7 +28,7 @@ export default function RegisterPage() {
 
     console.log(data)
     try {
-      const response = await fetch('http://127.0.0.1:8080/auth/registration', {
+      const response = await fetch('http://localhost:8000/auth/registration', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

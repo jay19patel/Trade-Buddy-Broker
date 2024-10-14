@@ -26,7 +26,7 @@ export default function EnhancedPositionBook() {
       try {
         const token  = Cookies.get("access_token")
 
-        const response = await fetch('http://127.0.0.1:8080/order/all_positions', {
+        const response = await fetch('http://localhost:8000/order/all_positions', {
           method: 'GET',
           headers: {
             'accept': 'application/json',

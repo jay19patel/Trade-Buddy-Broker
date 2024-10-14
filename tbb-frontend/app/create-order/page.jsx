@@ -98,7 +98,7 @@ export default function StockSearchApp() {
     
     try {
       const token = Cookies.get("access_token");
-      const response = await fetch('http://127.0.0.1:8080/order/new_order/', {
+      const response = await fetch('http://localhost:8000/order/new_order/', {
         method: 'POST',
         body: JSON.stringify(bodydata),
         headers: {
