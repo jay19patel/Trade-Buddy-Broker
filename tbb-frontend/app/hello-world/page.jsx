@@ -1,10 +1,54 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, User, Send, Code, Package, ShoppingCart, BarChart, CreditCard } from "lucide-react"
+import { Mail, User, Send, Code } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ContactPage() {
+  const [email, setEmail] = useState("")
+  const [subject, setSubject] = useState("")
+  const [message, setMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      const response = await fetch('http://localhost:8000/auth/help_message_send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, subject, message }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Message sent",
+          description: "We've received your message and will get back to you soon.",
+        })
+        setEmail("")
+        setSubject("")
+        setMessage("")
+      } else {
+        throw new Error('Failed to send message')
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "There was a problem sending your message. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-purple-100 to-blue-100 min-h-screen">
       <h1 className="text-4xl font-bold text-center mb-8 text-purple-800">Contact Us</h1>
@@ -27,11 +71,32 @@ export default function ContactPage() {
             <CardDescription className="text-blue-100">Fill out this form and we'll get back to you as soon as possible.</CardDescription>
           </CardHeader>
           <CardContent className="mt-4">
-            <form className="space-y-4">
-              <Input placeholder="Your Email" type="email" required className="border-blue-300 focus:border-blue-500" />
-              <Input placeholder="Subject" required className="border-blue-300 focus:border-blue-500" />
-              <Textarea placeholder="Your Message" required className="border-blue-300 focus:border-blue-500" />
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">Send Message</Button>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input 
+                placeholder="Your Email" 
+                type="email" 
+                required 
+                className="border-blue-300 focus:border-blue-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Input 
+                placeholder="Subject" 
+                required 
+                className="border-blue-300 focus:border-blue-500"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+              <Textarea 
+                placeholder="Your Message" 
+                required 
+                className="border-blue-300 focus:border-blue-500"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                {isLoading ? "Sending..." : "Send Message"}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -41,16 +106,12 @@ export default function ContactPage() {
         <CardHeader className="bg-green-600 text-white">
           <CardTitle className="flex items-center"><Code className="mr-2" /> Our APIs</CardTitle>
           <CardDescription className="text-green-100">Explore our powerful APIs to integrate with our services.</CardDescription>
-        <a href={"http://localhost:8080/docs"} className="text-white hover:underline mt-2 inline-block">Learn more</a>
+          <a href={"http://localhost:8000/docs"} className="text-white hover:underline mt-2 inline-block">Learn more</a>
         </CardHeader>
         <CardContent className="mt-4">
           <ul className="space-y-4">
             {[
-              { icon: User, title: "User Management API", description: "Manage user accounts and authentication.", link: "http://localhost:8080/docs" },
-              // { icon: Package, title: "Product Catalog API", description: "Access our extensive product database.", link: "/api/products" },
-              // { icon: ShoppingCart, title: "Order Processing API", description: "Integrate order management into your systems.", link: "/api/orders" },
-              // { icon: BarChart, title: "Analytics API", description: "Retrieve detailed analytics and reports.", link: "/api/analytics" },
-              // { icon: CreditCard, title: "Payment Gateway API", description: "Securely process payments through our platform.", link: "/api/payments" },
+              { icon: User, title: "User Management API", description: "Manage user accounts and authentication.", link: "http://localhost:8000/docs" },
             ].map((api, index) => (
               <li key={index} className="bg-gray-100 p-4 rounded-lg">
                 <div className="flex items-center mb-2">
@@ -61,7 +122,6 @@ export default function ContactPage() {
                 <div className="bg-gray-200 p-2 rounded text-sm font-mono">
                   GET {api.link}
                 </div>
-                {/* <a href={api.link} className="text-blue-500 hover:underline mt-2 inline-block">Learn more</a> */}
               </li>
             ))}
           </ul>

@@ -26,7 +26,7 @@ export default function Component() {
       setLoading(true);
       const token  = Cookies.get("access_token")
       
-      const response = await fetch('http://localhost:8080/transaction/get_all_transactions', {
+      const response = await fetch('http://localhost:8000/transaction/get_all_transactions', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export default function Component() {
       };
 
       const token  = Cookies.get("access_token")
-      const response = await fetch('http://localhost:8080/transaction/create_transaction', {
+      const response = await fetch('http://localhost:8000/transaction/create_transaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

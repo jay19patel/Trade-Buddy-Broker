@@ -7,8 +7,8 @@ from fastapi.templating import Jinja2Templates
 import asyncio
 # APP
 from app.Database.base import AsyncSession, get_db
-from app.Schemas.auth_schema import Registration, Login
-from app.Models.model import Account
+from app.Schemas.auth_schema import Registration, Login,Message
+from app.Models.model import Account,HelpMessage
 from app.Core.responseBytb import TBException, TBResponse
 from app.Core.security import generate_hash_password, check_hash_password, create_access_token, generate_unique_account_id,decode_token,get_account_from_token
 from app.Core.config import setting
@@ -165,7 +165,7 @@ async def verify_email_send_token(email,
             return TBResponse(
                 message= "Email sent successfully",
                 payload= {"access_token": str(access_token),
-                            "link_for_verification":f"http://localhost:8080/auth/verify_email/verification/{access_token}"                            
+                            "link_for_verification":f"http://localhost:8000/auth/verify_email/verification/{access_token}"                            
                             })
         return {"message": "Email Alredy Verified"}
     except Exception as e:
@@ -175,3 +175,23 @@ async def verify_email_send_token(email,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+@auth_rout.post("/help_message_send", status_code=status.HTTP_200_OK)
+async def create_user(request: Message,db: AsyncSession = Depends(get_db)):
+    try:
+        message = HelpMessage(
+            email = request.email,
+            subject = request.subject,
+            message = request.message)
+        db.add(message)
+        await db.commit()
+        return TBResponse(
+                message=f"Message dileverd from {request.email} To TB help center",
+                payload={}
+            )
+    except Exception as e:
+        raise TBException(
+            message="An error occurred during sending message.",
+            resolution=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

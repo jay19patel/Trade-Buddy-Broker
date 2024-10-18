@@ -18,3 +18,9 @@ class Registration(BaseModel):
 class Login(BaseModel):
     user_id:str
     password:str
+
+
+class Message(BaseModel):
+    email : EmailStr
+    subject : str
+    message : str

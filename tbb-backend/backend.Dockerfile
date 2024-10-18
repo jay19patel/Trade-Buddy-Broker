@@ -20,7 +20,7 @@ COPY . /backend-app
 # Install specific versions of dependencies
 RUN pip install -r requirements.txt
 
-# Expose port 8080 to allow access to your application
+# Expose port 8000 to allow access to your application
 EXPOSE 8000
 
 # Command to run the application

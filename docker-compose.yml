@@ -41,6 +41,8 @@ services:
     depends_on:
       - backend
     command: ["npm", "run","dev"]
+    volumes:
+      - ./tbb-frontend:/frontend-app
     networks:
       - tradebuddy_network
       

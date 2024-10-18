@@ -82,7 +82,7 @@ export default function LoginPage() {
     setIsVerifying(true)
 
     try {
-      const response = await axios.get(`http://localhost:8080/auth/verify_email/send_token/${verificationEmail}`)
+      const response = await axios.get(`http://localhost:8000/auth/verify_email/send_token/${verificationEmail}`)
       if (response.ok){
         router.push("/")
         toast({

@@ -240,7 +240,7 @@ export default function OpenPositionsTable({
 
   const fetchPrice = async (selectedTrade) => {
     try {
-      const response = await fetch(`http://localhost:8080/live_data/find?type_of_symbol=${selectedTrade?.stock_type}&symbol_id=${selectedTrade?.stock_symbol}`)
+      const response = await fetch(`http://localhost:8000/live_data/find?type_of_symbol=${selectedTrade?.stock_type}&symbol_id=${selectedTrade?.stock_symbol}`)
       const detailData = await response.json()
       setPrice(detailData?.ltp)
       return detailData?.ltp

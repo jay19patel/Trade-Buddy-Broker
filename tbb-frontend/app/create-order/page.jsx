@@ -55,7 +55,7 @@ export default function StockSearchApp() {
   const fetchSearchResults = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`http://localhost:8080/live_data/search?q=${searchTerm}`)
+      const response = await fetch(`http://localhost:8000/live_data/search?q=${searchTerm}`)
       const data = await response.json() 
       setSearchResults(data)
       setShowDropdown(true)
@@ -72,7 +72,7 @@ export default function StockSearchApp() {
 
     try {
       const symbolId = stock.nse_scrip_code || stock.bse_scrip_code || stock.id;
-      const response = await fetch(`http://localhost:8080/live_data/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`)
+      const response = await fetch(`http://localhost:8000/live_data/find?type_of_symbol=${stock.entity_type}&symbol_id=${symbolId}`)
       const detailData = await response.json()
       setSelectedStock(detailData)
     } catch (error) {

@@ -136,3 +136,11 @@ class Order(Base):
     account = relationship('Account', back_populates='orders')
     position = relationship('Position', back_populates='orders')
 
+
+class HelpMessage(Base):
+    __tablename__ = 'help_desk'
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    email = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+
