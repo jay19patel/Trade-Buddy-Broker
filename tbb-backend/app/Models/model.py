@@ -143,4 +143,5 @@ class HelpMessage(Base):
     email = Column(String, nullable=False)
     subject = Column(String, nullable=False)
     message = Column(String, nullable=False)
+    is_replied = Column(Boolean, default=False)
 

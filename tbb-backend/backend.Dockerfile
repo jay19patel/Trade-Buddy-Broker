@@ -18,6 +18,7 @@ RUN pip install --upgrade pip wheel setuptools
 COPY . /backend-app
 
 # Install specific versions of dependencies
+RUN pip install httptools uvloop
 RUN pip install -r requirements.txt
 
 # Expose port 8000 to allow access to your application
