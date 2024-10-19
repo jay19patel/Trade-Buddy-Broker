@@ -24,7 +24,7 @@ export default function ContactPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, subject, message }),
+        body: JSON.stringify({ email, title:subject, message }),
       })
 
       if (response.ok) {

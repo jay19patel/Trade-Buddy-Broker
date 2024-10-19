@@ -136,12 +136,23 @@ class Order(Base):
     account = relationship('Account', back_populates='orders')
     position = relationship('Position', back_populates='orders')
 
+from datetime import datetime
+class TicketDB(Base):
+    __tablename__ = "tickets"
 
-class HelpMessage(Base):
-    __tablename__ = 'help_desk'
-    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    email = Column(String, nullable=False)
-    subject = Column(String, nullable=False)
-    message = Column(String, nullable=False)
-    is_replied = Column(Boolean, default=False)
+    id = Column(String, primary_key=True, index=True)
+    email = Column(String, index=True)
+    title = Column(String)
+    message = Column(String)
+    replied = Column(Boolean, default=False)
+    datetime = Column(DateTime(timezone=True), server_default=func.now())
+    replies = relationship("ReplyDB", back_populates="ticket")
 
+class ReplyDB(Base):
+    __tablename__ = "replies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message = Column(String)
+    datetime = Column(DateTime(timezone=True), server_default=func.now())
+    ticket_id = Column(String, ForeignKey("tickets.id"))
+    ticket = relationship("TicketDB", back_populates="replies")

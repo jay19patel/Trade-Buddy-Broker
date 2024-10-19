@@ -3,12 +3,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, or_
 from datetime import timedelta,datetime
 import logging
+import os
 from fastapi.templating import Jinja2Templates
 import asyncio
 # APP
 from app.Database.base import AsyncSession, get_db
-from app.Schemas.auth_schema import Registration, Login,Message
-from app.Models.model import Account,HelpMessage
+from app.Schemas.auth_schema import Registration, Login,TicketBase
+from app.Models.model import Account,TicketDB
 from app.Core.responseBytb import TBException, TBResponse
 from app.Core.security import generate_hash_password, check_hash_password, create_access_token, generate_unique_account_id,decode_token,get_account_from_token
 from app.Core.config import setting
@@ -176,20 +177,28 @@ async def verify_email_send_token(email,
         )
 
 
+# @app.post("/tickets")
+# async def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
+#     db_ticket = TicketDB(**ticket.dict(), id=f"TKT-{os.urandom(4).hex()}")
+#     db.add(db_ticket)
+#     db.commit()
+#     db.refresh(db_ticket)
+#     return db_ticket
+
+
 @auth_rout.post("/help_message_send", status_code=status.HTTP_200_OK)
-async def create_user(request: Message,db: AsyncSession = Depends(get_db)):
+async def create_user(request: TicketBase,db: AsyncSession = Depends(get_db)):
     try:
-        message = HelpMessage(
-            email = request.email,
-            subject = request.subject,
-            message = request.message)
-        db.add(message)
+        db_ticket = TicketDB(**request.dict(), id=f"TKT-{os.urandom(4).hex()}")
+        db.add(db_ticket)
         await db.commit()
+        await db.refresh(db_ticket)
         return TBResponse(
                 message=f"Message dileverd from {request.email} To TB help center",
                 payload={}
             )
     except Exception as e:
+        await db.rollback()
         raise TBException(
             message="An error occurred during sending message.",
             resolution=str(e),

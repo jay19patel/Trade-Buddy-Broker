@@ -20,7 +20,7 @@ class Login(BaseModel):
     password:str
 
 
-class Message(BaseModel):
-    email : EmailStr
-    subject : str
-    message : str
+class TicketBase(BaseModel):
+    email: EmailStr
+    title: str
+    message: str

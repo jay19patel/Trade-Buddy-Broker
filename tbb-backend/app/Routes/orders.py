@@ -58,7 +58,7 @@ async def create_new_order(
             "created_by": request.created_by
         }
         if order_margin > account.balance:
-                raise Exception("Insufficient balance to place the order")
+                raise Exception("Insufficient balance to place the order, Your Balance is {account.balance}")
 
         if request.order_side == OrderSide.BUY:
             position_data.update({

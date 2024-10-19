@@ -124,7 +124,7 @@ export default function StockSearchApp() {
         console.error("Error creating order:", errorData);
         toast({
           title: "Order Creation Failed",
-          description: errorData?.resolution || "An error occurred while creating the order.",
+          description: errorData?.message || "An error occurred while creating the order.",
           duration: 5000,
         });
       }
