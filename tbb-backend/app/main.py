@@ -67,6 +67,14 @@ async def internal_server_error_handler(request: Request, exc: Exception):
         }
     )
 
+import socket
+import os
+@app.get("/")
+async def get_host_info(request: Request):
+    hostname = socket.gethostname()
+    host_ip = request.client.host
+    port = request.url.port
+    return {"hostname": hostname, "host_ip": host_ip, "port": port,"Base URL":os.getenv("API_BASE_URL")}
 
 app.include_router(auth_rout,prefix="/auth",tags=["User Login and Registartion"])
 app.include_router(order_route,prefix="/order",tags=["Orders Management"])

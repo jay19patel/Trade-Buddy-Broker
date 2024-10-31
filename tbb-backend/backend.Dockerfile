@@ -24,6 +24,4 @@ RUN pip install -r requirements.txt
 # Expose port 8000 to allow access to your application
 EXPOSE 8000
 
-# Command to run the application
-# CMD ["python", "run.py"]
-CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000","--reload"]

@@ -19,7 +19,7 @@ conf = ConnectionConfig(
 
 async def email_send_access_token(emails: List[str], access_token: str) -> JSONResponse:
     try:
-        url_for_authentication = f"{setting.HOST_URL}auth/verify_email/verification/{access_token}"
+        url_for_authentication = f"http://0.0.0.0:8000//auth/verify_email/verification/{access_token}"
         html = f"""
         <!DOCTYPE html>
             <html lang="en">

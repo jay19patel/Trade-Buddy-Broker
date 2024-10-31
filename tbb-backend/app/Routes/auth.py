@@ -132,16 +132,19 @@ async def account_detail(account:Account = Depends(get_account_from_token), db: 
 async def verify_email_verification(AccessToken,
                                     request: Request,
                                     db: AsyncSession = Depends(get_db)):
-    token_data = decode_token(AccessToken)
-    if not token_data:
-        return templates.TemplateResponse("verify_faild.html", {"request": request})
-    result = await db.execute(select(Account).where(Account.email_id == token_data["AccountEmail"]))
-    account = result.scalars().first()
-    if not account.email_verified:
-        account.email_verified = True
-        await db.commit()   
+    try:
+        token_data = decode_token(AccessToken)
+        if not token_data:
+            return templates.TemplateResponse("verify_faild.html", {"request": request})
+        result = await db.execute(select(Account).where(Account.email_id == token_data["AccountEmail"]))
+        account = result.scalars().first()
+        if not account.email_verified:
+            account.email_verified = True
+            await db.commit()   
+            return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
         return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
-    return templates.TemplateResponse("verify_success.html", {"request": request,"user":account})
+    except:
+        return templates.TemplateResponse("verify_faild.html", {"request": request})
 
 
 @auth_rout.get("/verify_email/send_token/{email}", status_code=status.HTTP_200_OK)
@@ -166,7 +169,7 @@ async def verify_email_send_token(email,
             return TBResponse(
                 message= "Email sent successfully",
                 payload= {"access_token": str(access_token),
-                            "link_for_verification":f"http://localhost:8000/auth/verify_email/verification/{access_token}"                            
+                            "link_for_verification":f"{os.getenv("API_BASE_URL")}/auth/verify_email/verification/{access_token}"                            
                             })
         return {"message": "Email Alredy Verified"}
     except Exception as e:
