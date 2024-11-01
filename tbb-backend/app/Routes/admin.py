@@ -3,7 +3,7 @@ from fastapi import APIRouter,Depends,HTTPException,BackgroundTasks
 from sqlalchemy import select,asc, desc,text,func
 from typing import Dict, List,Optional
 from app.Database.base import get_db, AsyncSession
-from app.Schemas.admin import TicketCreate,ReplyBase,AccountList
+from app.Schemas.admin import TicketCreate,ReplyBase,AccountList,TicketList
 from app.Models.model import TicketDB,ReplyDB
 from  app.Core.security import generate_unique_id
 from app.Core.tickit_email import email_send_for_ticket_replay
@@ -21,17 +21,20 @@ async def create_ticket(ticket: TicketCreate, db: AsyncSession = Depends(get_db)
     return db_ticket
 
 
-@admin_route.get("/tickets")
+@admin_route.get("/tickets", response_model=TicketList)
 async def get_tickets(
     search: Optional[str] = None,
     sort_by: Optional[str] = "id",
     sort_order: Optional[str] = "asc",
     filter_replied: Optional[str] = "all",
+    page: int = 1,
+    limit: int = 10,
     db: AsyncSession = Depends(get_db)
 ):
+    # Start building the query
     stmt = select(TicketDB)
 
-    # Add search filter
+    # Apply search filtering
     if search:
         stmt = stmt.where(
             (TicketDB.id.ilike(f"%{search}%")) |
@@ -39,21 +42,33 @@ async def get_tickets(
             (TicketDB.title.ilike(f"%{search}%"))
         )
 
-    # Add reply status filter
+    # Apply filter for replied status
     if filter_replied != "all":
         stmt = stmt.where(TicketDB.replied == (filter_replied == "replied"))
 
-    # Sort the query
+    # Apply sorting
     if sort_order.lower() == "desc":
-        stmt = stmt.order_by(desc(getattr(TicketDB, sort_by)))
+        stmt = stmt.order_by(getattr(TicketDB, sort_by).desc())
     else:
-        stmt = stmt.order_by(asc(getattr(TicketDB, sort_by)))
+        stmt = stmt.order_by(getattr(TicketDB, sort_by).asc())
 
-    # Execute the statement
-    result = await db.execute(stmt)
+    # Calculate total count of tickets
+    total_count_stmt = select(TicketDB).select_from(stmt)
+    total_count_result = await db.execute(total_count_stmt)
+    total_count = len(total_count_result.scalars().all())
+
+    # Paginate results
+    paginated_stmt = stmt.offset((page - 1) * limit).limit(limit)
+    result = await db.execute(paginated_stmt)
     tickets = result.scalars().all()
 
-    return tickets
+    # Calculate total pages
+    total_pages = (total_count + limit - 1) // limit
+
+    return TicketList(tickets=tickets, totalPages=total_pages)
+
+
+
 from sqlalchemy.orm import selectinload
 
 @admin_route.get("/tickets/{ticket_id}")

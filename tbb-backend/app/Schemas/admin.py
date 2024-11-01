@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
-
 class ReplyBase(BaseModel):
     message: str
 
@@ -32,7 +31,21 @@ class Account(BaseModel):
     positive_trades: int
     negative_trades: int
     created_datetime: datetime
-    
+
+class Ticket(BaseModel):
+    id : str
+    email : str
+    title : str
+    message : str
+    replied : bool
+    datetime : datetime
+    replies : list[Reply]
+
+
 class AccountList(BaseModel):
     accounts: List[Account]
+    totalPages: int
+
+class TicketList(BaseModel):
+    tickets: List[Ticket]
     totalPages: int
