@@ -21,7 +21,7 @@ services:
       context: ./tbb-backend
       dockerfile: backend.Dockerfile
     environment:
-      - API_BASE_URL=http://localhost
+      - API_BASE_URL=hhttps://34.56.223.62
     expose:
       - 8000
     depends_on:
