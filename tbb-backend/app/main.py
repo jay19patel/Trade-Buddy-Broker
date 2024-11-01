@@ -9,6 +9,7 @@ from art import text2art
 # APP
 from app.Core.responseBytb import TBException
 from app.Routes.auth import auth_rout
+from app.Routes.admin import admin_route
 from app.Routes.orders import order_route
 from app.Routes.transaction import transaction_route
 from app.Routes.liveprice import live_price_route
@@ -36,7 +37,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://trade-buddy-umber.vercel.app/login"],
+    allow_origins=["https://trade-buddy-umber.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,6 +89,7 @@ async def get_host_info(request: Request):
     
    
 
+app.include_router(admin_route,prefix="/admin",tags=["Admin Page"])
 app.include_router(auth_rout,prefix="/auth",tags=["User Login and Registartion"])
 app.include_router(order_route,prefix="/order",tags=["Orders Management"])
 app.include_router(transaction_route,prefix="/transaction",tags=["Account Balance Transaction"])
