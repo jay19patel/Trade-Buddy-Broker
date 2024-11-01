@@ -33,14 +33,12 @@ class Account(BaseModel):
     created_datetime: datetime
 
 class Ticket(BaseModel):
-    id : str
+    id:str
     email : str
     title : str
     message : str
     replied : bool
-    datetime : datetime
-    replies : list[Reply]
-
+    datetime : str
 
 class AccountList(BaseModel):
     accounts: List[Account]

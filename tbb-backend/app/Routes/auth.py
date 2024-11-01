@@ -7,6 +7,7 @@ import os
 from fastapi.templating import Jinja2Templates
 import asyncio
 # APP
+from  app.Core.security import generate_unique_id
 from app.Database.base import AsyncSession, get_db
 from app.Schemas.auth_schema import Registration, Login,TicketBase
 from app.Models.model import Account,TicketDB
@@ -180,19 +181,10 @@ async def verify_email_send_token(email,
         )
 
 
-# @app.post("/tickets")
-# async def create_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
-#     db_ticket = TicketDB(**ticket.dict(), id=f"TKT-{os.urandom(4).hex()}")
-#     db.add(db_ticket)
-#     db.commit()
-#     db.refresh(db_ticket)
-#     return db_ticket
-
-
 @auth_rout.post("/help_message_send", status_code=status.HTTP_200_OK)
 async def create_user(request: TicketBase,db: AsyncSession = Depends(get_db)):
     try:
-        db_ticket = TicketDB(**request.dict(), id=f"TKT-{os.urandom(4).hex()}")
+        db_ticket = TicketDB(**request.dict(), id=generate_unique_id("TKT"))
         db.add(db_ticket)
         await db.commit()
         await db.refresh(db_ticket)

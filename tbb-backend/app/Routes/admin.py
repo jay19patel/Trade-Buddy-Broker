@@ -21,7 +21,7 @@ async def create_ticket(ticket: TicketCreate, db: AsyncSession = Depends(get_db)
     return db_ticket
 
 
-@admin_route.get("/tickets", response_model=TicketList)
+@admin_route.get("/tickets")
 async def get_tickets(
     search: Optional[str] = None,
     sort_by: Optional[str] = "id",
@@ -61,12 +61,11 @@ async def get_tickets(
     paginated_stmt = stmt.offset((page - 1) * limit).limit(limit)
     result = await db.execute(paginated_stmt)
     tickets = result.scalars().all()
-
     # Calculate total pages
     total_pages = (total_count + limit - 1) // limit
 
-    return TicketList(tickets=tickets, totalPages=total_pages)
-
+    # return TicketList(tickets=tickets, totalPages=total_pages)
+    return {"tickets":tickets,"total_pages":total_pages}
 
 
 from sqlalchemy.orm import selectinload
