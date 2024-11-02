@@ -389,7 +389,7 @@ async def get_positions(account: Account = Depends(get_account_from_token),
             position.orders.sort(key=lambda x: x.order_datetime, reverse=True)
 
         total_pnl_result = await db.execute(select(func.sum(Position.pnl_total)).where(Position.account_id == account.account_id))  
-        
+        pnl_total = total_pnl_result.scalar()
         overview = {
             "total_positions": len(positions),
             "open_positions": sum(1 for p in positions if p.position_status == PositionStatus.PENDING),
@@ -399,7 +399,7 @@ async def get_positions(account: Account = Depends(get_account_from_token),
             "negative_pnl_count": sum(1 for p in positions if p.pnl_total < 0),
             "balance":round(account.balance,2),
             "invested_amount":round(sum(abs(p.buy_margin-p.sell_margin)  for p in positions if p.position_status == PositionStatus.PENDING),2),
-            "pnl_total":round(total_pnl_result.scalar(),2) or 0 }
+            "pnl_total":( round(pnl_total,2) if pnl_total else 0)}
         return {"positions":positions,"overview":overview}
     except Exception as e:
         print(f"Error: {e}")
