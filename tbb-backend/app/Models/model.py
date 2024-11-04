@@ -105,7 +105,7 @@ class Position(Base):
     pnl_total = Column(Float, nullable=False, default=0)
     target_price = Column(Float, nullable=False)
     stoploss_price = Column(Float, nullable=False)
-    created_date = Column(DateTime, server_default=func.now())
+    created_date = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL)
 
     account = relationship('Account', back_populates='positions')
