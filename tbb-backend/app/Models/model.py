@@ -1,5 +1,5 @@
 from app.Database.base import Base
-from sqlalchemy import text,Column, String, Float, Integer, Boolean, DateTime, func, ForeignKey, Enum as sqlEnum
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, func, ForeignKey, Enum as sqlEnum
 from enum import Enum
 from sqlalchemy.orm import relationship
 
@@ -61,7 +61,7 @@ class Account(Base):
     trailing_status = Column(Boolean, default=True)
     trailing_stoploss = Column(Float, default=0.0)
     trailing_target = Column(Float, default=0.0)
-    created_datetime = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    created_datetime = Column(DateTime(timezone=True), server_default=func.now())
 
     transactions = relationship('Transaction', back_populates='account')
     positions = relationship('Position', back_populates='account')
@@ -77,7 +77,7 @@ class Transaction(Base):
     transaction_type = Column(sqlEnum(TransactionType), nullable=False, default=TransactionType.DEPOSIT)
     transaction_amount = Column(Float, nullable=False)
     transaction_note = Column(String)
-    transaction_datetime = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    transaction_datetime = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     account = relationship('Account', back_populates='transactions')
@@ -85,6 +85,7 @@ class Transaction(Base):
 class Position(Base):
     """Position model."""
     __tablename__ = 'positions'
+
     position_id = Column(String, primary_key=True, nullable=False)
     account_id = Column(String, ForeignKey('accounts.account_id'), nullable=False)
     stock_symbol = Column(String, nullable=False)
@@ -104,7 +105,7 @@ class Position(Base):
     pnl_total = Column(Float, nullable=False, default=0)
     target_price = Column(Float, nullable=False)
     stoploss_price = Column(Float, nullable=False)
-    created_date = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    created_date = Column(DateTime, server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL)
 
     account = relationship('Account', back_populates='positions')
@@ -128,13 +129,14 @@ class Order(Base):
     stop_order_activate = Column(Boolean, default=False)
     stoploss_price = Column(Float)
     target_price = Column(Float)
-    order_datetime = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    order_datetime = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(sqlEnum(CreateBy), nullable=False, default=CreateBy.MENUAL) 
 
     # Relationships
     account = relationship('Account', back_populates='orders')
     position = relationship('Position', back_populates='orders')
 
+from datetime import datetime
 class TicketDB(Base):
     __tablename__ = "tickets"
 
@@ -143,7 +145,7 @@ class TicketDB(Base):
     title = Column(String)
     message = Column(String)
     replied = Column(Boolean, default=False)
-    datetime = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    datetime = Column(DateTime(timezone=True), server_default=func.now())
     replies = relationship("ReplyDB", back_populates="ticket")
 
 class ReplyDB(Base):
@@ -151,6 +153,6 @@ class ReplyDB(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     message = Column(String)
-    datetime = Column(DateTime(timezone=True), server_default=text("timezone('Asia/Kolkata', now())"))
+    datetime = Column(DateTime(timezone=True), server_default=func.now())
     ticket_id = Column(String, ForeignKey("tickets.id"))
     ticket = relationship("TicketDB", back_populates="replies")
