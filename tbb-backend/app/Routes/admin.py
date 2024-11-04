@@ -140,9 +140,9 @@ async def get_accounts(
             COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END), 0) - 
             COALESCE(SUM(CASE WHEN t.transaction_type = 'WITHDRAW' THEN t.transaction_amount ELSE 0 END), 0) AS total_amount,
             
-            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.position_status ='Completed') AS total_trades,
-            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl_total > 0 AND p.position_status ='Completed') AS positive_trades,
-            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl_total <= 0 AND p.position_status ='Completed') AS negative_trades
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.position_status ='COMPLETED') AS total_trades,
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl_total > 0 AND p.position_status ='COMPLETED') AS positive_trades,
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl_total <= 0 AND p.position_status ='COMPLETED') AS negative_trades
         FROM accounts a
         LEFT JOIN transactions t ON a.account_id = t.account_id
         WHERE 1=1
