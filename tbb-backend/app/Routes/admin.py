@@ -135,7 +135,7 @@ async def get_accounts(
             a.description,
             a.created_datetime,
             a.is_activate,
-            COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END) + 50000, 0) AS total_deposit,
+            COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END), 0) AS total_deposit,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'WITHDRAW' THEN t.transaction_amount ELSE 0 END), 0) AS total_withdrawal,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END), 0) - 
             COALESCE(SUM(CASE WHEN t.transaction_type = 'WITHDRAW' THEN t.transaction_amount ELSE 0 END), 0) AS total_amount,

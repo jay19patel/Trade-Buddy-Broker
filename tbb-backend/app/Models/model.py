@@ -41,7 +41,7 @@ class StockType(Enum):
 
 class Account(Base):
     """Account model."""
-    INITIAL_BALANCE: float = 10000.00
+    INITIAL_BALANCE: float = 0.00
     __tablename__ = 'accounts'
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_id = Column(String, unique=True, nullable=False)
