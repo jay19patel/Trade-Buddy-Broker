@@ -4,8 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func,or_
 from datetime import date
-from typing import Optional
-from datetime import date
 from sqlalchemy.orm import joinedload
 # APP
 from app.Models.model import Order, Position, Account,PositionStatus,OrderSide,OrderTypes,CreateBy

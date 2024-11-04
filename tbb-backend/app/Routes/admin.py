@@ -135,13 +135,14 @@ async def get_accounts(
             a.description,
             a.created_datetime,
             a.is_activate,
-            COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END), 0) AS total_deposit,
+            COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END) + 50000, 0) AS total_deposit,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'WITHDRAW' THEN t.transaction_amount ELSE 0 END), 0) AS total_withdrawal,
             COALESCE(SUM(CASE WHEN t.transaction_type = 'DEPOSIT' THEN t.transaction_amount ELSE 0 END), 0) - 
             COALESCE(SUM(CASE WHEN t.transaction_type = 'WITHDRAW' THEN t.transaction_amount ELSE 0 END), 0) AS total_amount,
-            (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.account_id) AS total_trades,
-            (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.account_id AND o.order_side = 'BUY') AS positive_trades,
-            (SELECT COUNT(*) FROM orders o WHERE o.account_id = a.account_id AND o.order_side = 'SELL') AS negative_trades
+            
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.position_status ='Completed') AS total_trades,
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl > 0 AND p.position_status ='Completed') AS positive_trades,
+            (SELECT COUNT(*) FROM positions p WHERE p.account_id = a.account_id AND p.pnl <= 0 AND p.position_status ='Completed') AS negative_trades
         FROM accounts a
         LEFT JOIN transactions t ON a.account_id = t.account_id
         WHERE 1=1

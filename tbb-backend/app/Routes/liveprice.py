@@ -50,9 +50,11 @@ def fetch_stock_data(search_id,type_of_symbol):
           response = requests.get(url, timeout=10)
           response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
           data = response.json()
-          return { "name": data.get("contractDetails").get("displayName"),
+          return { 
+                #   "name": data.get("contractDetails").get("displayName"),
+                  "name": search_id,
                   "ltp": data.get("livePrice").get("ltp"),
-                  "type":"Stocks",
+                  "type":"Option",
                     'open': data.get("livePrice").get("open"),
                     'high': data.get("livePrice").get("high"),
                     'low': data.get("livePrice").get("low"),

@@ -57,9 +57,8 @@ async def email_send_for_ticket_replay(emails: List[str],data:dict) -> JSONRespo
                 
                 <div style="border: 2px solid #ccc; border-radius: 8px; padding: 15px; background-color: #e0e0e0; margin-bottom: 20px;">
                     <div style="font-weight: bold; margin-bottom: 10px; color: #00aaff;">Dear Trade Buddy User</div>
-                    <p>We have looked into your case and found that:</p>
                     <p>{data.get("ticket_reply", "").replace('"', '')}</p>
-                    <p>Thank you for contacting our support team regarding your issue.</p>
+                    <p>Thank you for contacting our support team.</p>
                 </div>
 
                 <div style="text-align: center; font-size: 14px; border-top: 1px solid #ccc; padding-top: 10px;">
