@@ -6,7 +6,7 @@ from app.Core.config import setting
 
 conf = ConnectionConfig(
     MAIL_USERNAME="developer.jay19@gmail.com",
-    MAIL_PASSWORD="gtlgweqwhtizargb",
+    MAIL_PASSWORD=setting.MAIL_PASSWORD,
     MAIL_FROM="developer.jay19@gmail.com",
     MAIL_PORT=465,
     MAIL_SERVER="smtp.gmail.com",

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:admin@postgres:5432/tradebuddy"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRY: int = 86400
+    MAIL_PASSWORD:str = "gtlgweqwhtizargb"
 
     # class Config:
     #     env_file = ".env"

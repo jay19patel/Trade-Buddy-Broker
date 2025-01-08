@@ -1,29 +1,28 @@
-import random
+import secrets
 import string
-from fastapi import Request, HTTPException, status, Depends
-import jwt
-import bcrypt
-from datetime import timedelta, datetime
 import time
 import uuid
-# APP
+from datetime import timedelta, datetime
+import bcrypt
+import jwt
+from fastapi import Request, status, Depends
 from app.Core.config import setting
 from app.Database.base import get_db, AsyncSession
 from app.Models.model import Account
-from sqlalchemy import select, text
-from app.Core.responseBytb import TBException, TBResponse
+from sqlalchemy import text
+from app.Core.responseBytb import TBException
 
 async def generate_unique_account_id() -> str:
     characters = string.ascii_uppercase + string.digits
     async for db in get_db():
         while True:
-            new_id = ''.join(random.choice(characters) for _ in range(5))
-            query = text(f"SELECT account_id FROM accounts WHERE account_id = :new_id")
+            new_id = ''.join(secrets.choice(characters) for _ in range(5))
+            
+            query = text("SELECT account_id FROM accounts WHERE account_id = :new_id")
             result = await db.execute(query, {'new_id': new_id})
             existing_id = result.fetchone()
-
             if not existing_id:
-                return str(new_id)
+                return new_id
 
 
 def generate_unique_id(input_string: str) -> str:
