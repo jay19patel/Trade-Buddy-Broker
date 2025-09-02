@@ -3,20 +3,20 @@ Order management service
 """
 
 from typing import Dict, Any
-from ..models import (
+from trade_buddy.entities.models import (
     Account, Position, Order, OrderSide, PositionStatus, 
     OrderTypes, ProductType, CreateBy
 )
-from ..schemas import (
+from trade_buddy.entities.schemas import (
     CreateOrderSchema, UpdateStoplossSchema,
     UpdateQuantitySchema, ExitOrderSchema
 )
-from ..core.exceptions import (
+from trade_buddy.core.exceptions import (
     InsufficientFundsError, PositionNotFoundError, 
     OrderCreationError, ValidationError
 )
-from ..core.response import TradeBuddyResponse
-from ..utils.security import SecurityManager
+from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.utils.security import SecurityManager
 from .factory import RepositoryFactory
 
 

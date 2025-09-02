@@ -4,8 +4,8 @@ Order repository implementation
 
 from typing import List, Optional, Dict
 from .base import BaseRepository
-from ..models import Order
-from ..core.exceptions import DataNotFoundError
+from trade_buddy.entities.models import Order
+from trade_buddy.core.exceptions import DataNotFoundError
 
 
 class OrderRepository(BaseRepository[Order]):

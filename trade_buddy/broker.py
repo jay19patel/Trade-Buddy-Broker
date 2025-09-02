@@ -5,15 +5,15 @@ Main broker class - Production ready Trade Buddy SDK
 import asyncio
 from typing import Optional, List, Dict, Any
 
-from .models import Account
-from .schemas import (
+from trade_buddy.entities.models import Account
+from trade_buddy.entities.schemas import (
     RegistrationSchema, LoginSchema, CreateOrderSchema,
     UpdateStoplossSchema, UpdateQuantitySchema, ExitOrderSchema,
     TransactionSchema, SupportTicketSchema
 )
-from .core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
-from .core.response import TradeBuddyResponse
-from .services.factory import ServiceFactory
+from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
+from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.services.factory import ServiceFactory
 
 
 class TradeBuddy:
@@ -49,9 +49,6 @@ class TradeBuddy:
         self._current_account: Optional[Account] = None
         self._access_token: Optional[str] = None
         self._initialized = False
-        
-        # Initialize demo data
-        asyncio.create_task(self._initialize_demo_data())
     
     async def _initialize_demo_data(self):
         """Initialize with demo account"""
@@ -62,7 +59,7 @@ class TradeBuddy:
             auth_service = self._service_factory.create_service('auth')
             
             # Create demo account
-            from .utils.security import SecurityManager
+            from trade_buddy.utils.security import SecurityManager
             security = SecurityManager()
             
             demo_account = Account(
@@ -129,6 +126,10 @@ class TradeBuddy:
             TradeBuddyResponse with login details and access token
         """
         try:
+            # Initialize demo data if not done
+            if not self._initialized:
+                await self._initialize_demo_data()
+            
             # Validate input
             if isinstance(data, dict):
                 schema = LoginSchema(**data)
@@ -308,8 +309,8 @@ class TradeBuddy:
             else:
                 schema = data
             
-            from .models import Ticket
-            from .utils.security import SecurityManager
+            from trade_buddy.entities.models import Ticket
+            from trade_buddy.utils.security import SecurityManager
             
             security = SecurityManager()
             ticket = Ticket(

@@ -4,8 +4,8 @@ Account repository implementation
 
 from typing import List, Optional, Dict
 from .base import BaseRepository
-from ..models import Account
-from ..core.exceptions import DataNotFoundError, TradeBuddyException
+from trade_buddy.entities.models import Account
+from trade_buddy.core.exceptions import DataNotFoundError, TradeBuddyException
 
 
 class AccountRepository(BaseRepository[Account]):

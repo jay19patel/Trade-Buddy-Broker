@@ -3,11 +3,11 @@ Factory pattern for service creation
 """
 
 from typing import Dict, Type, Any
-from ..repositories import (
+from trade_buddy.repositories import (
     AccountRepository, PositionRepository, 
     OrderRepository, TransactionRepository
 )
-from ..utils.singleton import Singleton
+from trade_buddy.utils.singleton import Singleton
 
 
 class RepositoryFactory(Singleton):

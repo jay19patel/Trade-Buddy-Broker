@@ -11,7 +11,7 @@ import jwt
 from datetime import timedelta, datetime
 from typing import Dict, Any, Optional
 from .singleton import Singleton
-from ..core.exceptions import TradeBuddyException, AuthenticationError, ValidationError
+from trade_buddy.core.exceptions import TradeBuddyException, AuthenticationError, ValidationError
 
 
 class SecurityManager(Singleton):
@@ -25,8 +25,10 @@ class SecurityManager(Singleton):
     
     def generate_unique_id(self, prefix: str) -> str:
         """Generate unique ID with prefix"""
+        import random
         timestamp = int(time.time() * 1000)  # milliseconds
-        unique_string = f"TB-{timestamp}-{prefix.upper()}"
+        random_suffix = random.randint(100, 999)  # Add random suffix to ensure uniqueness
+        unique_string = f"TB-{timestamp}{random_suffix}-{prefix.upper()}"
         return unique_string
     
     def generate_unique_account_id(self, existing_ids: set = None) -> str:

@@ -4,11 +4,11 @@ Authentication service
 
 from datetime import timedelta
 from typing import Optional
-from ..models import Account
-from ..schemas import RegistrationSchema, LoginSchema
-from ..core.exceptions import AuthenticationError, ValidationError
-from ..core.response import TradeBuddyResponse
-from ..utils.security import SecurityManager
+from trade_buddy.entities.models import Account
+from trade_buddy.entities.schemas import RegistrationSchema, LoginSchema
+from trade_buddy.core.exceptions import AuthenticationError, ValidationError
+from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.utils.security import SecurityManager
 from .factory import RepositoryFactory
 
 

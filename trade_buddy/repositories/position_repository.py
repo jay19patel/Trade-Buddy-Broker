@@ -4,8 +4,8 @@ Position repository implementation
 
 from typing import List, Optional, Dict
 from .base import BaseRepository
-from ..models import Position, PositionStatus
-from ..core.exceptions import DataNotFoundError
+from trade_buddy.entities.models import Position, PositionStatus
+from trade_buddy.core.exceptions import DataNotFoundError
 from datetime import date
 
 

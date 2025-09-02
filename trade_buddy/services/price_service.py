@@ -5,7 +5,7 @@ Live price data service
 import requests
 from typing import List, Dict, Any, Optional
 from requests.exceptions import RequestException
-from ..core.exceptions import TradeBuddyException
+from trade_buddy.core.exceptions import TradeBuddyException
 
 
 class PriceService:

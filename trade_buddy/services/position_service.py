@@ -3,8 +3,8 @@ Position management service
 """
 
 from typing import Dict, Any, List
-from ..models import Account, PositionStatus
-from ..core.response import TradeBuddyResponse
+from trade_buddy.entities.models import Account, PositionStatus
+from trade_buddy.core.response import TradeBuddyResponse
 from .factory import RepositoryFactory
 
 

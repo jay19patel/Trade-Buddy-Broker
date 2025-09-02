@@ -2,7 +2,7 @@
 Pydantic schemas for request/response validation
 """
 
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from .models import OrderSide, CreateBy, StockType
 
@@ -20,7 +20,7 @@ class RegistrationSchema(BaseModel):
     trailing_target: float = Field(default=10.0, ge=0.1, le=100.0)
     description: str = Field(default="Trade Buddy User")
 
-    @validator('password')
+    @field_validator('password')
     def validate_password(cls, v):
         if len(v.strip()) < 6:
             raise ValueError('Password must be at least 6 characters long')
@@ -44,7 +44,7 @@ class CreateOrderSchema(BaseModel):
     quantity: int = Field(..., gt=0)
     created_by: CreateBy = CreateBy.MANUAL
 
-    @validator('stock_symbol')
+    @field_validator('stock_symbol')
     def validate_stock_symbol(cls, v):
         return v.upper().strip()
 
@@ -76,7 +76,7 @@ class ExitOrderSchema(BaseModel):
 
 class TransactionSchema(BaseModel):
     """Transaction schema"""
-    transaction_type: str = Field(..., regex="^(DEPOSIT|WITHDRAW)$")
+    transaction_type: str = Field(..., pattern="^(DEPOSIT|WITHDRAW)$")
     amount: float = Field(..., gt=0)
     note: str = Field(default="")
 

@@ -2,11 +2,11 @@
 Transaction management service
 """
 
-from ..models import Account, Transaction, TransactionType
-from ..schemas import TransactionSchema
-from ..core.exceptions import InsufficientFundsError, ValidationError
-from ..core.response import TradeBuddyResponse
-from ..utils.security import SecurityManager
+from trade_buddy.entities.models import Account, Transaction, TransactionType
+from trade_buddy.entities.schemas import TransactionSchema
+from trade_buddy.core.exceptions import InsufficientFundsError, ValidationError
+from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.utils.security import SecurityManager
 from .factory import RepositoryFactory
 
 
