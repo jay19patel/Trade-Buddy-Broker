@@ -19,7 +19,7 @@ from trade_buddy.entities.response_schemas import (
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
 from trade_buddy.core.response import TBResponse
 from trade_buddy.core.database import get_database_manager, initialize_database
-from trade_buddy.core.session_manager import HybridSessionManager, SessionData
+from trade_buddy.core.session_manager import DatabaseSessionManager
 from trade_buddy.services.factory import ServiceFactory
 
 
@@ -53,7 +53,7 @@ class TradeBuddy:
     def __init__(self):
         """Initialize Trade Buddy broker"""
         self._service_factory = ServiceFactory()
-        self._session_manager = HybridSessionManager()
+        self._session_manager = DatabaseSessionManager()
         self._current_session_id: Optional[str] = None
         self._initialized = False
         self._db_initialized = False
@@ -99,20 +99,33 @@ class TradeBuddy:
         except Exception:
             pass  # Silent fail for demo data
     
-    async def _require_authentication(self) -> SessionData:
+    async def _require_authentication(self) -> Dict[str, Any]:
         """Check if user is authenticated and return session"""
         if not self._current_session_id:
             raise AuthenticationError("Please login first")
         
-        session = await self._session_manager.get_session(self._current_session_id)
-        if not session:
+        session_data = await self._session_manager.get_session(self._current_session_id)
+        if not session_data:
             raise AuthenticationError("Session expired, please login again")
         
         # Validate session token
         if not await self._session_manager.validate_session(self._current_session_id):
             raise AuthenticationError("Invalid session, please login again")
         
-        return session
+        return session_data
+    
+    async def _get_account_from_session(self) -> Account:
+        """Get account from current session"""
+        session_data = await self._require_authentication()
+        
+        # Get account from session data
+        from trade_buddy.repositories import AccountRepository
+        account_repo = AccountRepository()
+        account = await account_repo.get_by_id(session_data['account_id'])
+        if not account:
+            raise AuthenticationError("Account not found")
+        
+        return account
     
     async def registration(self, data: Dict[str, Any]) -> TBResponse:
         """
@@ -218,7 +231,7 @@ class TradeBuddy:
         Returns:
             TBResponse with order details
         """
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             # Validate input
@@ -228,7 +241,7 @@ class TradeBuddy:
                 schema = data
             
             order_service = self._service_factory.create_service('order')
-            response = await order_service.create_new_order(session.account, schema)
+            response = await order_service.create_new_order(account, schema)
             
             # Convert to new TBResponse format
             if response.success:
@@ -247,7 +260,7 @@ class TradeBuddy:
     
     async def update_stoploss(self, data: Dict[str, Any]) -> TBResponse:
         """Create/update stoploss order"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             if isinstance(data, dict):
@@ -256,7 +269,7 @@ class TradeBuddy:
                 schema = data
             
             order_service = self._service_factory.create_service('order')
-            response = await order_service.create_stoploss_order(session.account, schema)
+            response = await order_service.create_stoploss_order(account, schema)
             
             # Convert to new TBResponse format
             if response.success:
@@ -275,7 +288,7 @@ class TradeBuddy:
     
     async def update_quantity(self, data: Dict[str, Any]) -> TBResponse:
         """Update position quantity"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             if isinstance(data, dict):
@@ -284,7 +297,7 @@ class TradeBuddy:
                 schema = data
             
             order_service = self._service_factory.create_service('order')
-            response = await order_service.update_quantity(session.account, schema)
+            response = await order_service.update_quantity(account, schema)
             
             # Convert to new TBResponse format
             if response.success:
@@ -303,7 +316,7 @@ class TradeBuddy:
     
     async def exit_position(self, data: Dict[str, Any]) -> TBResponse:
         """Exit position completely"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             if isinstance(data, dict):
@@ -312,7 +325,7 @@ class TradeBuddy:
                 schema = data
             
             order_service = self._service_factory.create_service('order')
-            response = await order_service.exit_position(session.account, schema)
+            response = await order_service.exit_position(account, schema)
             
             # Convert to new TBResponse format
             if response.success:
@@ -331,11 +344,11 @@ class TradeBuddy:
     
     async def get_positions(self) -> TBResponse:
         """Get user positions with overview"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             position_service = self._service_factory.create_service('position')
-            positions_data = await position_service.get_positions(session.account)
+            positions_data = await position_service.get_positions(account)
             
             # Convert to new TBResponse format
             overview = PositionsOverview(**positions_data)
@@ -349,11 +362,11 @@ class TradeBuddy:
     
     async def get_position_history(self) -> TBResponse:
         """Get all completed positions"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             position_service = self._service_factory.create_service('position')
-            positions = await position_service.get_all_positions(session.account)
+            positions = await position_service.get_all_positions(account)
             
             # Convert to new TBResponse format
             positions_data = [PositionData(**pos.model_dump()) for pos in positions]
@@ -367,7 +380,7 @@ class TradeBuddy:
     
     async def create_transaction(self, data: Dict[str, Any]) -> TBResponse:
         """Create transaction (deposit/withdraw)"""
-        session = await self._require_authentication()
+        account = await self._get_account_from_session()
         
         try:
             if isinstance(data, dict):
@@ -376,7 +389,7 @@ class TradeBuddy:
                 schema = data
             
             transaction_service = self._service_factory.create_service('transaction')
-            response = await transaction_service.create_transaction(session.account, schema)
+            response = await transaction_service.create_transaction(account, schema)
             
             # Convert to new TBResponse format
             if response.success:
@@ -395,8 +408,8 @@ class TradeBuddy:
     
     async def get_account_details(self) -> TBResponse:
         """Get current account details"""
-        session = await self._require_authentication()
-        account_data = AccountData(**session.account.model_dump_safe())
+        account = await self._get_account_from_session()
+        account_data = AccountData(**account.model_dump_safe())
         return TBResponse(
             message="Account details retrieved successfully",
             data={"account": account_data.model_dump()}
@@ -531,8 +544,8 @@ class TradeBuddy:
     
     async def get_current_balance(self) -> float:
         """Get current account balance"""
-        session = await self._require_authentication()
-        return session.account.balance
+        account = await self._get_account_from_session()
+        return account.balance
     
     async def delete_account(self, account_id: str) -> TBResponse:
         """
@@ -551,8 +564,8 @@ class TradeBuddy:
             
             # If current account is being deleted, logout
             if self._current_session_id:
-                session = await self._session_manager.get_session(self._current_session_id)
-                if session and session.account.account_id == account_id:
+                session_data = await self._session_manager.get_session(self._current_session_id)
+                if session_data and session_data['account_id'] == account_id:
                     await self.logout()
             
             return TBResponse(
