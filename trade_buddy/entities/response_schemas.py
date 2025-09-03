@@ -33,6 +33,7 @@ class LoginData(BaseModel):
     """Login response data schema"""
     user: UserData
     access_token: str
+    session_id: str
     token_type: str = "bearer"
     
     class Config:

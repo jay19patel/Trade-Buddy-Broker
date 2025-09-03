@@ -149,6 +149,24 @@ class Transaction(SQLModel, table=True):
     account: Optional[Account] = Relationship(back_populates="transactions")
 
 
+class Session(SQLModel, table=True):
+    """User session model for authentication tracking"""
+    __tablename__ = "sessions"
+    
+    session_id: str = Field(primary_key=True, max_length=100)
+    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
+    jwt_token: str = Field(max_length=500)
+    device_info: Optional[str] = Field(default=None, max_length=200)
+    ip_address: Optional[str] = Field(default=None, max_length=50)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    last_activity: datetime = Field(default_factory=datetime.now)
+    expires_at: datetime = Field()
+    
+    # Relationship
+    account: Optional[Account] = Relationship()
+
+
 class Ticket(SQLModel, table=True):
     """Support ticket model with SQLModel"""
     __tablename__ = "tickets"

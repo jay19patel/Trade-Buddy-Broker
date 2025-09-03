@@ -1,29 +1,28 @@
 """
-Async database layer for Trade Buddy SDK
-Supports SQLite (default) and PostgreSQL for production
+SQLite Database Manager for Trade Buddy SDK
+Optimized for SQLite with async support
 """
 
 import os
-from sqlmodel import SQLModel, create_engine, Session, select
+from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator, Optional
 from pathlib import Path
 
-from trade_buddy.entities.models import Account, Position, Order, Transaction, Ticket
+from trade_buddy.entities.models import Account, Position, Order, Transaction, Ticket, Session
 
 
 class DatabaseManager:
-    """Database manager with async support"""
+    """SQLite database manager with async support"""
     
     def __init__(self, database_url: Optional[str] = None):
         """
-        Initialize database manager
+        Initialize SQLite database manager
         
         Args:
-            database_url: Database URL. If None, defaults to SQLite
+            database_url: SQLite database URL. If None, defaults to ./data/tradebuddy.db
         """
-        # Set default database URL for SQLite
         if database_url is None:
             db_dir = Path("data")
             db_dir.mkdir(exist_ok=True)
@@ -34,23 +33,13 @@ class DatabaseManager:
         self._session_factory: Optional[sessionmaker] = None
         
     def _get_engine(self) -> AsyncEngine:
-        """Get async engine instance"""
+        """Get SQLite async engine instance"""
         if self._engine is None:
-            if "sqlite" in self.database_url:
-                # SQLite configuration
-                self._engine = create_async_engine(
-                    self.database_url,
-                    echo=False,  # Set to True for SQL query logging
-                    connect_args={"check_same_thread": False}
-                )
-            else:
-                # PostgreSQL configuration
-                self._engine = create_async_engine(
-                    self.database_url,
-                    echo=False,
-                    pool_pre_ping=True,
-                    pool_recycle=300
-                )
+            self._engine = create_async_engine(
+                self.database_url,
+                echo=False,  # Set to True for SQL query debugging
+                connect_args={"check_same_thread": False}
+            )
         return self._engine
     
     def _get_session_factory(self) -> sessionmaker:
@@ -85,24 +74,24 @@ class DatabaseManager:
                 await session.close()
     
     async def truncate_all_tables(self):
-        """Truncate all tables (clear data but keep structure)"""
+        """Clear all data from tables"""
         async for session in self.get_session():
             try:
-                # Delete in correct order to respect foreign key constraints
                 from sqlalchemy import text
                 
+                # Delete in correct order to respect foreign key constraints
+                await session.execute(text("DELETE FROM sessions"))
                 await session.execute(text("DELETE FROM orders"))
                 await session.execute(text("DELETE FROM transactions"))
                 await session.execute(text("DELETE FROM positions"))
                 await session.execute(text("DELETE FROM tickets"))
                 await session.execute(text("DELETE FROM accounts"))
                 
-                # Reset SQLite sequences if using SQLite
-                if "sqlite" in self.database_url:
-                    await session.execute(text("DELETE FROM sqlite_sequence"))
+                # Reset SQLite sequences
+                await session.execute(text("DELETE FROM sqlite_sequence"))
                 
                 await session.commit()
-                break  # Exit the async generator
+                break
             except Exception as e:
                 await session.rollback()
                 raise e
@@ -113,14 +102,27 @@ class DatabaseManager:
             try:
                 from sqlalchemy import text
                 
-                # Delete in correct order to respect foreign key constraints
+                # Delete in correct order
+                await session.execute(text("DELETE FROM sessions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM orders WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM transactions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM positions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM accounts WHERE account_id = :account_id"), {"account_id": account_id})
                 
                 await session.commit()
-                break  # Exit the async generator
+                break
+            except Exception as e:
+                await session.rollback()
+                raise e
+    
+    async def cleanup_expired_sessions(self):
+        """Remove expired sessions from database"""
+        async for session in self.get_session():
+            try:
+                from sqlalchemy import text
+                await session.execute(text("DELETE FROM sessions WHERE expires_at < datetime('now') OR is_active = 0"))
+                await session.commit()
+                break
             except Exception as e:
                 await session.rollback()
                 raise e
@@ -131,42 +133,6 @@ class DatabaseManager:
             await self._engine.dispose()
 
 
-class DatabaseConfig:
-    """Database configuration helper"""
-    
-    @staticmethod
-    def get_sqlite_url(db_name: str = "tradebuddy.db", db_dir: str = "data") -> str:
-        """Get SQLite database URL"""
-        db_path = Path(db_dir)
-        db_path.mkdir(exist_ok=True)
-        return f"sqlite+aiosqlite:///{db_path}/{db_name}"
-    
-    @staticmethod
-    def get_postgresql_url(
-        host: str = "localhost",
-        port: int = 5432,
-        database: str = "tradebuddy",
-        username: str = "postgres",
-        password: str = "password"
-    ) -> str:
-        """Get PostgreSQL database URL"""
-        return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{database}"
-    
-    @staticmethod
-    def from_env() -> str:
-        """Get database URL from environment variables"""
-        db_url = os.getenv("DATABASE_URL")
-        
-        if db_url:
-            # If using PostgreSQL, ensure we use asyncpg driver
-            if db_url.startswith("postgresql://"):
-                db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
-            return db_url
-        
-        # Default to SQLite
-        return DatabaseConfig.get_sqlite_url()
-
-
 # Global database manager instance
 db_manager: Optional[DatabaseManager] = None
 
@@ -175,7 +141,13 @@ def get_database_manager() -> DatabaseManager:
     """Get global database manager instance"""
     global db_manager
     if db_manager is None:
-        db_url = DatabaseConfig.from_env()
+        # Use environment variable or default to SQLite
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            db_dir = Path("data")
+            db_dir.mkdir(exist_ok=True)
+            db_url = f"sqlite+aiosqlite:///{db_dir}/tradebuddy.db"
+        
         db_manager = DatabaseManager(db_url)
     return db_manager
 
