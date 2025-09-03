@@ -3,10 +3,11 @@ Response models for Trade Buddy SDK
 """
 
 from typing import Dict, Any, Optional
+from trade_buddy.entities.response_schemas import TBResponse
 
 
 class TradeBuddyResponse:
-    """Standardized response for Trade Buddy SDK"""
+    """Legacy response class for backward compatibility"""
     
     def __init__(
         self, 
