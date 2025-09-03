@@ -2,20 +2,9 @@
 Response schemas for Trade Buddy SDK
 """
 
-from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional, List
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime
-
-
-class TBResponse(BaseModel):
-    """
-    Standard response format for all Trade Buddy broker methods
-    """
-    message: str = Field(..., description="Response message")
-    data: Optional[Dict[str, Any]] = Field(default=None, description="Response data")
-    
-    class Config:
-        from_attributes = True
 
 
 class UserData(BaseModel):
@@ -118,7 +107,7 @@ class TicketData(BaseModel):
     title: str
     message: str
     replied: bool
-    datetime: datetime
+    created_datetime: datetime
     
     class Config:
         from_attributes = True

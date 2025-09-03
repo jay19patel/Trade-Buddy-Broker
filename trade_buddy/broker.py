@@ -12,12 +12,12 @@ from trade_buddy.entities.schemas import (
     TransactionSchema, SupportTicketSchema
 )
 from trade_buddy.entities.response_schemas import (
-    TBResponse, UserData, LoginData, OrderData, PositionData,
+    UserData, LoginData, OrderData, PositionData,
     TransactionData, TicketData, PositionsOverview, AccountData,
     SymbolData, PriceData
 )
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
-from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.core.response import TBResponse
 from trade_buddy.core.database import get_database_manager, initialize_database
 from trade_buddy.services.factory import ServiceFactory
 
@@ -173,7 +173,7 @@ class TradeBuddy:
                 self._current_account = account
                 
                 # Convert to new TBResponse format
-                user_data = UserData(**account.to_dict())
+                user_data = UserData(**account.model_dump_safe())
                 login_data = LoginData(
                     user=user_data,
                     access_token=self._access_token
@@ -338,7 +338,7 @@ class TradeBuddy:
             positions = await position_service.get_all_positions(self._current_account)
             
             # Convert to new TBResponse format
-            positions_data = [PositionData(**pos.to_dict()) for pos in positions]
+            positions_data = [PositionData(**pos.model_dump()) for pos in positions]
             return TBResponse(
                 message="Position history retrieved successfully",
                 data={"positions": [pos.model_dump() for pos in positions_data]}
@@ -378,7 +378,7 @@ class TradeBuddy:
     async def get_account_details(self) -> TBResponse:
         """Get current account details"""
         self._require_authentication()
-        account_data = AccountData(**self._current_account.to_dict())
+        account_data = AccountData(**self._current_account.model_dump_safe())
         return TBResponse(
             message="Account details retrieved successfully",
             data={"account": account_data.model_dump()}
@@ -453,7 +453,7 @@ class TradeBuddy:
                 message=schema.message
             )
             
-            ticket_data = TicketData(**ticket.to_dict())
+            ticket_data = TicketData(**ticket.model_dump())
             return TBResponse(
                 message="Support ticket created successfully",
                 data={"ticket": ticket_data.model_dump()}

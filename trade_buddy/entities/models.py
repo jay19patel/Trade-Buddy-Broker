@@ -74,25 +74,11 @@ class Account(SQLModel, table=True):
     orders: List["Order"] = Relationship(back_populates="account")
     transactions: List["Transaction"] = Relationship(back_populates="account")
 
-    def to_dict(self):
+    def model_dump_safe(self):
         """Convert to dictionary (exclude password)"""
-        return {
-            "account_id": self.account_id,
-            "full_name": self.full_name,
-            "email_id": self.email_id,
-            "balance": self.balance,
-            "email_verified": self.email_verified,
-            "role": self.role,
-            "is_activate": self.is_activate,
-            "description": self.description,
-            "max_trad_per_day": self.max_trad_per_day,
-            "base_stoploss": self.base_stoploss,
-            "base_target": self.base_target,
-            "trailing_status": self.trailing_status,
-            "trailing_stoploss": self.trailing_stoploss,
-            "trailing_target": self.trailing_target,
-            "created_datetime": self.created_datetime.isoformat()
-        }
+        data = self.model_dump()
+        data.pop('password', None)  # Remove password from response
+        return data
 
 
 class Position(SQLModel, table=True):
@@ -122,30 +108,6 @@ class Position(SQLModel, table=True):
     account: Optional[Account] = Relationship(back_populates="positions")
     orders: List["Order"] = Relationship(back_populates="position")
 
-    def to_dict(self):
-        """Convert to dictionary"""
-        return {
-            "position_id": self.position_id,
-            "account_id": self.account_id,
-            "stock_symbol": self.stock_symbol,
-            "stock_type": self.stock_type,
-            "position_status": self.position_status,
-            "position_side": self.position_side,
-            "product_type": self.product_type,
-            "buy_average": self.buy_average,
-            "buy_margin": self.buy_margin,
-            "buy_quantity": self.buy_quantity,
-            "sell_average": self.sell_average,
-            "sell_margin": self.sell_margin,
-            "sell_quantity": self.sell_quantity,
-            "pnl_total": self.pnl_total,
-            "target_price": self.target_price,
-            "stoploss_price": self.stoploss_price,
-            "created_date": self.created_date.isoformat(),
-            "created_by": self.created_by,
-            "orders": [order.to_dict() for order in (self.orders or [])]
-        }
-
 
 class Order(SQLModel, table=True):
     """Order model with SQLModel"""
@@ -171,26 +133,6 @@ class Order(SQLModel, table=True):
     account: Optional[Account] = Relationship(back_populates="orders")
     position: Optional[Position] = Relationship(back_populates="orders")
 
-    def to_dict(self):
-        """Convert to dictionary"""
-        return {
-            "order_id": self.order_id,
-            "account_id": self.account_id,
-            "position_id": self.position_id,
-            "stock_symbol": self.stock_symbol,
-            "order_side": self.order_side,
-            "order_types": self.order_types,
-            "product_type": self.product_type,
-            "price": self.price,
-            "quantity": self.quantity,
-            "stop_order_hit": self.stop_order_hit,
-            "stop_order_activate": self.stop_order_activate,
-            "stoploss_price": self.stoploss_price,
-            "target_price": self.target_price,
-            "order_datetime": self.order_datetime.isoformat(),
-            "created_by": self.created_by
-        }
-
 
 class Transaction(SQLModel, table=True):
     """Transaction model with SQLModel"""
@@ -206,17 +148,6 @@ class Transaction(SQLModel, table=True):
     # Relationships
     account: Optional[Account] = Relationship(back_populates="transactions")
 
-    def to_dict(self):
-        """Convert to dictionary"""
-        return {
-            "transaction_id": self.transaction_id,
-            "account_id": self.account_id,
-            "transaction_type": self.transaction_type,
-            "transaction_amount": self.transaction_amount,
-            "transaction_note": self.transaction_note,
-            "transaction_datetime": self.transaction_datetime.isoformat()
-        }
-
 
 class Ticket(SQLModel, table=True):
     """Support ticket model with SQLModel"""
@@ -229,13 +160,3 @@ class Ticket(SQLModel, table=True):
     replied: bool = Field(default=False)
     created_datetime: datetime = Field(default_factory=datetime.now)
 
-    def to_dict(self):
-        """Convert to dictionary"""
-        return {
-            "id": self.id,
-            "email": self.email,
-            "title": self.title,
-            "message": self.message,
-            "replied": self.replied,
-            "datetime": self.created_datetime.isoformat()  # Keep 'datetime' for backward compatibility
-        }
