@@ -7,13 +7,10 @@ from typing import Optional, List, Dict, Any
 
 from trade_buddy.entities.models import Account
 from trade_buddy.entities.schemas import (
-    RegistrationSchema, LoginSchema, CreateOrderSchema,
-    UpdateStoplossSchema, UpdateQuantitySchema, ExitOrderSchema,
-    TransactionSchema, SupportTicketSchema
+    RegistrationSchema, LoginSchema, TransactionSchema
 )
 from trade_buddy.entities.response_schemas import (
-    UserData, LoginData, OrderData, PositionData,
-    TransactionData, TicketData, PositionsOverview, AccountData,
+    UserData, LoginData, TransactionData, AccountData,
     SymbolData, PriceData
 )
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
@@ -43,11 +40,8 @@ class TradeBuddy:
         # Login
         response = await broker.login(login_data)
         
-        # Create order
-        response = await broker.create_order(order_data)
-        
-        # Get positions  
-        positions = await broker.get_positions()
+        # Create transaction
+        response = await broker.create_transaction(transaction_data)
     """
     
     def __init__(self):
@@ -221,163 +215,6 @@ class TradeBuddy:
         except Exception as e:
             raise TradeBuddyException(f"Login failed: {str(e)}")
     
-    async def create_order(self, data: Dict[str, Any]) -> TBResponse:
-        """
-        Create new order
-        
-        Args:
-            data: Order data dictionary
-            
-        Returns:
-            TBResponse with order details
-        """
-        account = await self._get_account_from_session()
-        
-        try:
-            # Validate input
-            if isinstance(data, dict):
-                schema = CreateOrderSchema(**data)
-            else:
-                schema = data
-            
-            order_service = self._service_factory.create_service('order')
-            response = await order_service.create_new_order(account, schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                order_data = OrderData(**response.payload['order'])
-                return TBResponse(
-                    message="Order created successfully",
-                    data={"order": order_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
-            
-        except (ValidationError, TradeBuddyException):
-            raise
-        except Exception as e:
-            raise TradeBuddyException(f"Order creation failed: {str(e)}")
-    
-    async def update_stoploss(self, data: Dict[str, Any]) -> TBResponse:
-        """Create/update stoploss order"""
-        account = await self._get_account_from_session()
-        
-        try:
-            if isinstance(data, dict):
-                schema = UpdateStoplossSchema(**data)
-            else:
-                schema = data
-            
-            order_service = self._service_factory.create_service('order')
-            response = await order_service.create_stoploss_order(account, schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                order_data = OrderData(**response.payload['order'])
-                return TBResponse(
-                    message="Stoploss updated successfully",
-                    data={"order": order_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
-            
-        except (ValidationError, TradeBuddyException):
-            raise
-        except Exception as e:
-            raise TradeBuddyException(f"Stoploss update failed: {str(e)}")
-    
-    async def update_quantity(self, data: Dict[str, Any]) -> TBResponse:
-        """Update position quantity"""
-        account = await self._get_account_from_session()
-        
-        try:
-            if isinstance(data, dict):
-                schema = UpdateQuantitySchema(**data)
-            else:
-                schema = data
-            
-            order_service = self._service_factory.create_service('order')
-            response = await order_service.update_quantity(account, schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                order_data = OrderData(**response.payload['order'])
-                return TBResponse(
-                    message="Quantity updated successfully",
-                    data={"order": order_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
-            
-        except (ValidationError, TradeBuddyException):
-            raise
-        except Exception as e:
-            raise TradeBuddyException(f"Quantity update failed: {str(e)}")
-    
-    async def exit_position(self, data: Dict[str, Any]) -> TBResponse:
-        """Exit position completely"""
-        account = await self._get_account_from_session()
-        
-        try:
-            if isinstance(data, dict):
-                schema = ExitOrderSchema(**data)
-            else:
-                schema = data
-            
-            order_service = self._service_factory.create_service('order')
-            response = await order_service.exit_position(account, schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                position_data = PositionData(**response.payload['position'])
-                return TBResponse(
-                    message="Position exited successfully",
-                    data={"position": position_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
-            
-        except (ValidationError, TradeBuddyException):
-            raise
-        except Exception as e:
-            raise TradeBuddyException(f"Position exit failed: {str(e)}")
-    
-    async def get_positions(self) -> TBResponse:
-        """Get user positions with overview"""
-        account = await self._get_account_from_session()
-        
-        try:
-            position_service = self._service_factory.create_service('position')
-            positions_data = await position_service.get_positions(account)
-            
-            # Convert to new TBResponse format
-            overview = PositionsOverview(**positions_data)
-            return TBResponse(
-                message="Positions retrieved successfully",
-                data=overview.model_dump()
-            )
-            
-        except Exception as e:
-            raise TradeBuddyException(f"Failed to retrieve positions: {str(e)}")
-    
-    async def get_position_history(self) -> TBResponse:
-        """Get all completed positions"""
-        account = await self._get_account_from_session()
-        
-        try:
-            position_service = self._service_factory.create_service('position')
-            positions = await position_service.get_all_positions(account)
-            
-            # Convert to new TBResponse format
-            positions_data = [PositionData(**pos.model_dump()) for pos in positions]
-            return TBResponse(
-                message="Position history retrieved successfully",
-                data={"positions": [pos.model_dump() for pos in positions_data]}
-            )
-            
-        except Exception as e:
-            raise TradeBuddyException(f"Failed to retrieve position history: {str(e)}")
-    
     async def create_transaction(self, data: Dict[str, Any]) -> TBResponse:
         """Create transaction (deposit/withdraw)"""
         account = await self._get_account_from_session()
@@ -464,36 +301,6 @@ class TradeBuddy:
             )
         except Exception as e:
             raise TradeBuddyException(f"Multiple price fetch failed: {str(e)}")
-    
-    async def send_support_ticket(self, data: Dict[str, Any]) -> TBResponse:
-        """Send support ticket"""
-        try:
-            if isinstance(data, dict):
-                schema = SupportTicketSchema(**data)
-            else:
-                schema = data
-            
-            from trade_buddy.entities.models import Ticket
-            from trade_buddy.utils.security import SecurityManager
-            
-            security = SecurityManager()
-            ticket = Ticket(
-                id=security.generate_unique_id("TKT"),
-                email=schema.email,
-                title=schema.title,
-                message=schema.message
-            )
-            
-            ticket_data = TicketData(**ticket.model_dump())
-            return TBResponse(
-                message="Support ticket created successfully",
-                data={"ticket": ticket_data.model_dump()}
-            )
-            
-        except ValidationError:
-            raise
-        except Exception as e:
-            raise TradeBuddyException(f"Failed to create support ticket: {str(e)}")
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""

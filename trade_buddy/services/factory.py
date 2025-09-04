@@ -4,8 +4,7 @@ Factory pattern for service creation
 
 from typing import Dict, Type, Any
 from trade_buddy.repositories import (
-    AccountRepository, PositionRepository, 
-    OrderRepository, TransactionRepository
+    AccountRepository, TransactionRepository
 )
 from trade_buddy.utils.singleton import Singleton
 
@@ -23,18 +22,6 @@ class RepositoryFactory(Singleton):
         if 'account' not in self._repositories:
             self._repositories['account'] = AccountRepository()
         return self._repositories['account']
-    
-    def get_position_repository(self) -> PositionRepository:
-        """Get position repository instance"""
-        if 'position' not in self._repositories:
-            self._repositories['position'] = PositionRepository()
-        return self._repositories['position']
-    
-    def get_order_repository(self) -> OrderRepository:
-        """Get order repository instance"""
-        if 'order' not in self._repositories:
-            self._repositories['order'] = OrderRepository()
-        return self._repositories['order']
     
     def get_transaction_repository(self) -> TransactionRepository:
         """Get transaction repository instance"""
@@ -68,12 +55,6 @@ class ServiceFactory(Singleton):
             if service_type == 'auth':
                 from .auth_service import AuthService
                 self._services[service_type] = AuthService(self._repository_factory)
-            elif service_type == 'order':
-                from .order_service import OrderService
-                self._services[service_type] = OrderService(self._repository_factory)
-            elif service_type == 'position':
-                from .position_service import PositionService
-                self._services[service_type] = PositionService(self._repository_factory)
             elif service_type == 'transaction':
                 from .transaction_service import TransactionService
                 self._services[service_type] = TransactionService(self._repository_factory)

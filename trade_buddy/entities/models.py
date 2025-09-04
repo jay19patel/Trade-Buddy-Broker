@@ -9,42 +9,9 @@ from sqlmodel import SQLModel, Field, Relationship
 
 
 # Enums
-class OrderSide(Enum):
-    BUY = 'BUY'
-    SELL = 'SELL'
-
-
-class PositionStatus(Enum):
-    PENDING = 'Pending'
-    COMPLETED = 'Completed'
-
-
 class TransactionType(Enum):
     DEPOSIT = "Deposit"
     WITHDRAW = "Withdraw"
-
-
-class OrderTypes(Enum):
-    NewOrder = "New Order"
-    StopLossOrder = "Stoploss Order"
-    UpdateQtyOrder = "Update Quantity Order"
-    ExitOrder = "Exit Order"
-
-
-class CreateBy(Enum):
-    MANUAL = "Manual"
-    ALGO = "Algo"
-
-
-class ProductType(Enum):
-    CNC = 'CNC'
-    INTRADAY = 'Intraday'
-    MARGIN = 'Margin'
-
-
-class StockType(Enum):
-    STOCK = 'Stocks'
-    OPTION = 'Option'
 
 
 # SQLModel Database Tables
@@ -70,8 +37,6 @@ class Account(SQLModel, table=True):
     created_datetime: datetime = Field(default_factory=datetime.now)
     
     # Relationships
-    positions: List["Position"] = Relationship(back_populates="account")
-    orders: List["Order"] = Relationship(back_populates="account")
     transactions: List["Transaction"] = Relationship(back_populates="account")
 
     def model_dump_safe(self):
@@ -79,59 +44,6 @@ class Account(SQLModel, table=True):
         data = self.model_dump()
         data.pop('password', None)  # Remove password from response
         return data
-
-
-class Position(SQLModel, table=True):
-    """Position model with SQLModel"""
-    __tablename__ = "positions"
-    
-    position_id: str = Field(primary_key=True, max_length=50)
-    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
-    stock_symbol: str = Field(max_length=50)
-    stock_type: str = Field(max_length=20)  # StockType.value
-    position_status: str = Field(default="Pending", max_length=20)  # PositionStatus.value
-    position_side: str = Field(default="BUY", max_length=10)  # OrderSide.value
-    product_type: str = Field(default="CNC", max_length=20)  # ProductType.value
-    buy_average: float = Field(default=0.0)
-    buy_margin: float = Field(default=0.0)
-    buy_quantity: int = Field(default=0)
-    sell_average: float = Field(default=0.0)
-    sell_margin: float = Field(default=0.0)
-    sell_quantity: int = Field(default=0)
-    pnl_total: float = Field(default=0.0)
-    target_price: float = Field(default=0.0)
-    stoploss_price: float = Field(default=0.0)
-    created_date: datetime = Field(default_factory=datetime.now)
-    created_by: str = Field(default="Manual", max_length=20)  # CreateBy.value
-    
-    # Relationships
-    account: Optional[Account] = Relationship(back_populates="positions")
-    orders: List["Order"] = Relationship(back_populates="position")
-
-
-class Order(SQLModel, table=True):
-    """Order model with SQLModel"""
-    __tablename__ = "orders"
-    
-    order_id: str = Field(primary_key=True, max_length=50)
-    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
-    position_id: str = Field(foreign_key="positions.position_id", max_length=50)
-    stock_symbol: str = Field(max_length=50)
-    order_side: str = Field(default="BUY", max_length=10)  # OrderSide.value
-    order_types: str = Field(default="New Order", max_length=30)  # OrderTypes.value
-    product_type: str = Field(default="CNC", max_length=20)  # ProductType.value
-    price: Optional[float] = Field(default=None)
-    quantity: Optional[int] = Field(default=None)
-    stop_order_hit: Optional[bool] = Field(default=None)
-    stop_order_activate: bool = Field(default=False)
-    stoploss_price: Optional[float] = Field(default=None)
-    target_price: Optional[float] = Field(default=None)
-    order_datetime: datetime = Field(default_factory=datetime.now)
-    created_by: str = Field(default="Manual", max_length=20)  # CreateBy.value
-    
-    # Relationships
-    account: Optional[Account] = Relationship(back_populates="orders")
-    position: Optional[Position] = Relationship(back_populates="orders")
 
 
 class Transaction(SQLModel, table=True):
@@ -166,15 +78,4 @@ class Session(SQLModel, table=True):
     # Relationship
     account: Optional[Account] = Relationship()
 
-
-class Ticket(SQLModel, table=True):
-    """Support ticket model with SQLModel"""
-    __tablename__ = "tickets"
-    
-    id: str = Field(primary_key=True, max_length=50)
-    email: str = Field(max_length=100)
-    title: str = Field(max_length=200)
-    message: str = Field(max_length=1000)
-    replied: bool = Field(default=False)
-    created_datetime: datetime = Field(default_factory=datetime.now)
 

@@ -4,7 +4,6 @@ Pydantic schemas for request/response validation
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
-from .models import OrderSide, CreateBy, StockType
 
 
 class RegistrationSchema(BaseModel):
@@ -33,47 +32,6 @@ class LoginSchema(BaseModel):
     password: str = Field(..., description="User password")
 
 
-class CreateOrderSchema(BaseModel):
-    """Create new order schema"""
-    stock_symbol: str = Field(..., min_length=1)
-    order_side: OrderSide
-    stock_type: StockType
-    price: float = Field(..., gt=0)
-    stoploss_price: float = Field(..., gt=0)
-    target_price: float = Field(..., gt=0)
-    quantity: int = Field(..., gt=0)
-    created_by: CreateBy = CreateBy.MANUAL
-
-    @field_validator('stock_symbol')
-    def validate_stock_symbol(cls, v):
-        return v.upper().strip()
-
-
-class UpdateStoplossSchema(BaseModel):
-    """Update stoploss schema"""
-    position_id: str
-    stoploss_price: Optional[float] = Field(None, gt=0)
-    target_price: Optional[float] = Field(None, gt=0)
-    quantity: int = Field(..., gt=0)
-    created_by: CreateBy = CreateBy.MANUAL
-
-
-class UpdateQuantitySchema(BaseModel):
-    """Update quantity schema"""
-    position_id: str
-    order_side: OrderSide
-    quantity: int = Field(..., gt=0)
-    price: float = Field(..., gt=0)
-    created_by: CreateBy = CreateBy.MANUAL
-
-
-class ExitOrderSchema(BaseModel):
-    """Exit order schema"""
-    position_id: str
-    price: float = Field(..., gt=0)
-    created_by: CreateBy = CreateBy.MANUAL
-
-
 class TransactionSchema(BaseModel):
     """Transaction schema"""
     transaction_type: str = Field(..., pattern="^(DEPOSIT|WITHDRAW)$")
@@ -81,8 +39,3 @@ class TransactionSchema(BaseModel):
     note: str = Field(default="")
 
 
-class SupportTicketSchema(BaseModel):
-    """Support ticket schema"""
-    email: EmailStr
-    title: str = Field(..., min_length=3, max_length=100)
-    message: str = Field(..., min_length=10, max_length=1000)

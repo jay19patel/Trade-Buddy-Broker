@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator, Optional
 from pathlib import Path
 
-from trade_buddy.entities.models import Account, Position, Order, Transaction, Ticket, Session
+from trade_buddy.entities.models import Account, Transaction, Session
 
 
 class DatabaseManager:
@@ -81,10 +81,7 @@ class DatabaseManager:
                 
                 # Delete in correct order to respect foreign key constraints
                 await session.execute(text("DELETE FROM sessions"))
-                await session.execute(text("DELETE FROM orders"))
                 await session.execute(text("DELETE FROM transactions"))
-                await session.execute(text("DELETE FROM positions"))
-                await session.execute(text("DELETE FROM tickets"))
                 await session.execute(text("DELETE FROM accounts"))
                 
                 # Reset SQLite sequences
@@ -104,9 +101,7 @@ class DatabaseManager:
                 
                 # Delete in correct order
                 await session.execute(text("DELETE FROM sessions WHERE account_id = :account_id"), {"account_id": account_id})
-                await session.execute(text("DELETE FROM orders WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM transactions WHERE account_id = :account_id"), {"account_id": account_id})
-                await session.execute(text("DELETE FROM positions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM accounts WHERE account_id = :account_id"), {"account_id": account_id})
                 
                 await session.commit()
