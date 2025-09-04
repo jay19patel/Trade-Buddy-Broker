@@ -361,36 +361,36 @@ class TradeBuddy:
     async def open_position(self, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         account = await self._get_account_from_session()
         try:
-            pos = self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
-            return TBResponse(message="Position opened", data={"position": pos})
+            pos = await self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
+            return TBResponse(message="Position opened", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Open position failed: {str(e)}")
 
     async def update_position_levels(self, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         account = await self._get_account_from_session()
         try:
-            pos = self._get_position_service().update_levels(account, position_id, stoploss, target)
-            return TBResponse(message="Position levels updated", data={"position": pos})
+            pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
+            return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
     async def exit_position(self, position_id: str, exit_price: float) -> TBResponse:
         account = await self._get_account_from_session()
         try:
-            pos = self._get_position_service().exit_position(account, position_id, exit_price)
-            return TBResponse(message="Position exited", data={"position": pos})
+            pos = await self._get_position_service().exit_position(account, position_id, exit_price)
+            return TBResponse(message="Position exited", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Exit position failed: {str(e)}")
 
     async def get_open_positions(self) -> TBResponse:
         account = await self._get_account_from_session()
-        positions = self._get_position_service().get_open_positions(account.account_id)
-        return TBResponse(message="Open positions", data={"positions": positions})
+        positions = await self._get_position_service().get_open_positions(account.account_id)
+        return TBResponse(message="Open positions", data={"positions": [p.model_dump() for p in positions]})
 
     async def get_position_history(self) -> TBResponse:
         account = await self._get_account_from_session()
-        positions = self._get_position_service().get_position_history(account.account_id)
-        return TBResponse(message="Position history", data={"positions": positions})
+        positions = await self._get_position_service().get_position_history(account.account_id)
+        return TBResponse(message="Position history", data={"positions": [p.model_dump() for p in positions]})
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""

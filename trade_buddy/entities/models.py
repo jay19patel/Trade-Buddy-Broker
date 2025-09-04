@@ -79,3 +79,29 @@ class Session(SQLModel, table=True):
     account: Optional[Account] = Relationship()
 
 
+class PositionStatus(Enum):
+    OPEN = "Open"
+    CLOSED = "Closed"
+
+
+class Position(SQLModel, table=True):
+    """Trading position model"""
+    __tablename__ = "positions"
+    
+    position_id: str = Field(primary_key=True, max_length=50)
+    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
+    symbol_id: str = Field(max_length=100)
+    side: str = Field(max_length=10)  # BUY/SELL
+    quantity: int = Field()
+    avg_price: float = Field()
+    status: str = Field(default=PositionStatus.OPEN.value, max_length=10)
+    opened_at: datetime = Field(default_factory=datetime.now)
+    closed_at: Optional[datetime] = Field(default=None)
+    exit_price: Optional[float] = Field(default=None)
+    pnl: Optional[float] = Field(default=None)
+    stoploss: Optional[float] = Field(default=None)
+    target: Optional[float] = Field(default=None)
+    
+    # Relationship
+    account: Optional[Account] = Relationship()
+

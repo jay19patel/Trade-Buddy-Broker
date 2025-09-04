@@ -1,31 +1,21 @@
 """
-Lightweight in-memory Position service with stoploss/target updates.
+Async DB-backed Position service
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from trade_buddy.entities.models import Account
+from trade_buddy.entities.models import Account, Position, PositionStatus
+from trade_buddy.repositories.position_repository import PositionRepository
 from trade_buddy.utils.security import SecurityManager
 
 
 class PositionService:
-    """Simple in-memory positions for demo/testing.
-    Structure:
-      position = {
-        'position_id', 'account_id', 'symbol_id', 'side', 'quantity',
-        'avg_price', 'status', 'opened_at', 'closed_at', 'exit_price',
-        'pnl', 'stoploss', 'target'
-      }
-    """
-
-    _positions: Dict[str, Dict] = {}
-    _by_account: Dict[str, List[str]] = {}
-
     def __init__(self):
+        self.repo = PositionRepository()
         self.security = SecurityManager()
 
-    def open_position(
+    async def open_position(
         self,
         account: Account,
         symbol_id: str,
@@ -34,62 +24,48 @@ class PositionService:
         side: str,
         stoploss: Optional[float] = None,
         target: Optional[float] = None,
-    ) -> Dict:
-        position_id = self.security.generate_unique_id("POS")
-        pos = {
-            "position_id": position_id,
-            "account_id": account.account_id,
-            "symbol_id": symbol_id,
-            "quantity": int(quantity),
-            "avg_price": float(price),
-            "side": side.upper(),
-            "status": "OPEN",
-            "opened_at": datetime.now().isoformat(),
-            "closed_at": None,
-            "exit_price": None,
-            "pnl": None,
-            "stoploss": stoploss,
-            "target": target,
-        }
-        self._positions[position_id] = pos
-        self._by_account.setdefault(account.account_id, []).append(position_id)
-        return pos
+    ) -> Position:
+        position = Position(
+            position_id=self.security.generate_unique_id("POS"),
+            account_id=account.account_id,
+            symbol_id=symbol_id,
+            side=side.upper(),
+            quantity=quantity,
+            avg_price=price,
+            status=PositionStatus.OPEN.value,
+            stoploss=stoploss,
+            target=target,
+        )
+        return await self.repo.create(position)
 
-    def update_levels(
+    async def update_levels(
         self,
         account: Account,
         position_id: str,
         stoploss: Optional[float] = None,
         target: Optional[float] = None,
-    ) -> Dict:
-        pos = self._positions.get(position_id)
-        if not pos or pos["account_id"] != account.account_id:
+    ) -> Position:
+        position = await self.repo.get_by_id(position_id)
+        if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
-        if stoploss is not None:
-            pos["stoploss"] = float(stoploss)
-        if target is not None:
-            pos["target"] = float(target)
-        return pos
+        await self.repo.update_levels(position_id, stoploss, target)
+        updated = await self.repo.get_by_id(position_id)
+        return updated
 
-    def exit_position(self, account: Account, position_id: str, exit_price: float) -> Dict:
-        pos = self._positions.get(position_id)
-        if not pos or pos["account_id"] != account.account_id:
+    async def exit_position(self, account: Account, position_id: str, exit_price: float) -> Position:
+        position = await self.repo.get_by_id(position_id)
+        if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
-        if pos["status"] != "OPEN":
-            return pos
-        pos["status"] = "CLOSED"
-        pos["closed_at"] = datetime.now().isoformat()
-        pos["exit_price"] = float(exit_price)
-        multiplier = 1 if pos["side"] == "BUY" else -1
-        pos["pnl"] = round((pos["exit_price"] - pos["avg_price"]) * pos["quantity"] * multiplier, 2)
-        return pos
+        multiplier = 1 if position.side == 'BUY' else -1
+        pnl = round((exit_price - position.avg_price) * position.quantity * multiplier, 2)
+        await self.repo.close(position_id, exit_price, pnl)
+        closed = await self.repo.get_by_id(position_id)
+        return closed
 
-    def get_open_positions(self, account_id: str) -> List[Dict]:
-        ids = self._by_account.get(account_id, [])
-        return [self._positions[i] for i in ids if self._positions[i]["status"] == "OPEN"]
+    async def get_open_positions(self, account_id: str) -> List[Position]:
+        return await self.repo.get_open_by_account(account_id)
 
-    def get_position_history(self, account_id: str) -> List[Dict]:
-        ids = self._by_account.get(account_id, [])
-        return [self._positions[i] for i in ids if self._positions[i]["status"] == "CLOSED"]
+    async def get_position_history(self, account_id: str) -> List[Position]:
+        return await self.repo.get_history_by_account(account_id)
 
 

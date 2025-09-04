@@ -39,3 +39,23 @@ class TransactionSchema(BaseModel):
     note: str = Field(default="")
 
 
+class OpenPositionSchema(BaseModel):
+    symbol_id: str = Field(..., min_length=1)
+    quantity: int = Field(..., gt=0)
+    price: float = Field(..., gt=0)
+    side: str = Field(..., pattern="^(BUY|SELL)$")
+    stoploss: Optional[float] = Field(default=None, gt=0)
+    target: Optional[float] = Field(default=None, gt=0)
+
+
+class UpdatePositionLevelsSchema(BaseModel):
+    position_id: str = Field(..., min_length=3)
+    stoploss: Optional[float] = Field(default=None, gt=0)
+    target: Optional[float] = Field(default=None, gt=0)
+
+
+class ExitPositionSchema(BaseModel):
+    position_id: str = Field(..., min_length=3)
+    exit_price: float = Field(..., gt=0)
+
+
