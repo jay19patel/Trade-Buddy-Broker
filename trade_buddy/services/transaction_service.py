@@ -32,7 +32,7 @@ class TransactionService:
             transaction = Transaction(
                 transaction_id=self.security.generate_unique_id("TXN"),
                 account_id=account.account_id,
-                transaction_type=transaction_type,
+                transaction_type=transaction_type.value,
                 transaction_amount=data.amount,
                 transaction_note=data.note
             )
