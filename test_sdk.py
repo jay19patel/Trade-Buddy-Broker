@@ -63,9 +63,11 @@ async def run():
         vt = await broker.validate_token(sess["jwt_token"])
         print(vt.message, vt.data)
 
-    print("\n== Background Cleanup (Celery if configured) ==")
-    task_id = broker.cleanup_sessions_in_background()
-    print("Cleanup task enqueued:", task_id)
+    print("\n== Cleanup Expired Sessions ==")
+    from trade_buddy.core.database import get_database_manager
+    db = get_database_manager()
+    await db.cleanup_expired_sessions()
+    print("Cleanup executed")
 
     print("\n== Logout ==")
     lo = await broker.logout()

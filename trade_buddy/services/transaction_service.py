@@ -5,7 +5,7 @@ Transaction management service
 from trade_buddy.entities.models import Account, Transaction, TransactionType
 from trade_buddy.entities.schemas import TransactionSchema
 from trade_buddy.core.exceptions import InsufficientFundsError, ValidationError
-from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.core.response import TBResponse
 from trade_buddy.utils.security import SecurityManager
 from trade_buddy.repositories.account_repository import AccountRepository
 from trade_buddy.repositories.transaction_repository import TransactionRepository
@@ -19,7 +19,7 @@ class TransactionService:
         self.account_repo = AccountRepository()
         self.security = SecurityManager()
     
-    async def create_transaction(self, account: Account, data: TransactionSchema) -> TradeBuddyResponse:
+    async def create_transaction(self, account: Account, data: TransactionSchema) -> TBResponse:
         """Create new transaction"""
         try:
             transaction_type = TransactionType.DEPOSIT if data.transaction_type.upper() == "DEPOSIT" else TransactionType.WITHDRAW
@@ -46,12 +46,10 @@ class TransactionService:
             await self.transaction_repo.create(transaction)
             await self.account_repo.update(account)
             
-            return TradeBuddyResponse(
+            return TBResponse(
                 message=f"{transaction_type.value} completed successfully",
-                payload={
-                    "transaction_id": transaction.transaction_id,
-                    "type": transaction_type.value,
-                    "amount": data.amount,
+                data={
+                    "transaction": transaction.model_dump(),
                     "new_balance": round(account.balance, 2)
                 }
             )

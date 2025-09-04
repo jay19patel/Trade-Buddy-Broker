@@ -20,7 +20,7 @@ from trade_buddy.core.session_manager import DatabaseSessionManager
 from trade_buddy.services.auth_service import AuthService
 from trade_buddy.services.transaction_service import TransactionService
 from trade_buddy.services.price_service import PriceService
-from trade_buddy.tasks import app as celery_app
+from typing import Optional, List, Dict, Any
 
 
 class TradeBuddy:
@@ -184,16 +184,8 @@ class TradeBuddy:
             
             auth_service = self._get_auth_service()
             response = await auth_service.register(schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                user_data = UserData(**response.payload['user'])
-                return TBResponse(
-                    message="Registration successful",
-                    data={"user": user_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
+            # Pass through in unified TBResponse shape
+            return response
             
         except ValidationError:
             raise
@@ -226,8 +218,8 @@ class TradeBuddy:
             response = await auth_service.login(schema)
             
             # Store session
-            if response.success:
-                access_token = response.payload.get('access_token')
+            if response.data:
+                access_token = response.data.get('access_token')
                 account = await auth_service.verify_token(access_token)
                 
                 # Create session for the user
@@ -268,16 +260,7 @@ class TradeBuddy:
             
             transaction_service = self._get_transaction_service()
             response = await transaction_service.create_transaction(account, schema)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                transaction_data = TransactionData(**response.payload['transaction'])
-                return TBResponse(
-                    message="Transaction created successfully",
-                    data={"transaction": transaction_data.model_dump()}
-                )
-            else:
-                return TBResponse(message=response.message, data=None)
+            return response
             
         except (ValidationError, TradeBuddyException):
             raise
@@ -315,7 +298,18 @@ class TradeBuddy:
             price_data = price_service.get_stock_price(symbol_id, symbol_type)
             
             if price_data:
-                price = PriceData(**price_data)
+                mapped = {
+                    "symbol_id": price_data.get("id", symbol_id),
+                    "symbol_type": price_data.get("type", symbol_type),
+                    "ltp": price_data.get("ltp"),
+                    "open_price": price_data.get("open") or price_data.get("open_price"),
+                    "high_price": price_data.get("high") or price_data.get("high_price"),
+                    "low_price": price_data.get("low") or price_data.get("low_price"),
+                    "prev_close": price_data.get("close") or price_data.get("prev_close"),
+                    "change": price_data.get("change"),
+                    "change_percent": price_data.get("changePercent") or price_data.get("change_percent"),
+                }
+                price = PriceData(**mapped)
                 return TBResponse(
                     message="Price retrieved successfully",
                     data={"price": price.model_dump()}
@@ -331,11 +325,24 @@ class TradeBuddy:
     def get_multiple_prices(self, symbols: List[Dict[str, str]]) -> TBResponse:
         """Get live prices for multiple symbols"""
         try:
-            price_service = self._get_service_factory().create_service('price')
-            prices = price_service.get_multiple_prices(symbols)
+            price_service = self._get_price_service()
+            raw_prices = price_service.get_multiple_prices(symbols)
             
             # Convert to new TBResponse format
-            prices_data = [PriceData(**price) for price in prices]
+            prices_data = []
+            for price in raw_prices:
+                mapped = {
+                    "symbol_id": price.get("id") or price.get("symbol_id"),
+                    "symbol_type": price.get("type") or price.get("symbol_type"),
+                    "ltp": price.get("ltp"),
+                    "open_price": price.get("open") or price.get("open_price"),
+                    "high_price": price.get("high") or price.get("high_price"),
+                    "low_price": price.get("low") or price.get("low_price"),
+                    "prev_close": price.get("close") or price.get("prev_close"),
+                    "change": price.get("change"),
+                    "change_percent": price.get("changePercent") or price.get("change_percent"),
+                }
+                prices_data.append(PriceData(**mapped))
             return TBResponse(
                 message="Prices retrieved successfully",
                 data={"prices": [price.model_dump() for price in prices_data]}
@@ -348,15 +355,7 @@ class TradeBuddy:
         try:
             auth_service = self._get_auth_service()
             response = await auth_service.verify_email(token)
-            
-            # Convert to new TBResponse format
-            if response.success:
-                return TBResponse(
-                    message="Email verified successfully",
-                    data={"verified": True}
-                )
-            else:
-                return TBResponse(message=response.message, data={"verified": False})
+            return response
             
         except (ValidationError, AuthenticationError):
             raise
@@ -444,26 +443,11 @@ class TradeBuddy:
     
     async def clear_all_data(self):
         """Clear all data (for testing purposes only) - Legacy method"""
-        repo_factory = self._get_service_factory().get_repository_factory()
-        repo_factory.clear_all_repositories()
+        # No repository factory; nothing to clear in memory here
         await self._get_session_manager().clear_all_sessions()
         self._current_session_id = None
 
-    # Background helpers (Celery)
-    def clear_in_background(self) -> str:
-        """Enqueue clearing the database in background. Returns task id."""
-        task = celery_app.send_task("trade_buddy.clear_database")
-        return task.id
-
-    def delete_account_in_background(self, account_id: str) -> str:
-        """Enqueue account deletion in background. Returns task id."""
-        task = celery_app.send_task("trade_buddy.delete_account", args=[account_id])
-        return task.id
-
-    def cleanup_sessions_in_background(self) -> str:
-        """Enqueue expired sessions cleanup in background. Returns task id."""
-        task = celery_app.send_task("trade_buddy.cleanup_expired_sessions")
-        return task.id
+    # Background helpers removed
     
     async def get_session_info(self) -> Optional[Dict[str, Any]]:
         """Get current session information"""

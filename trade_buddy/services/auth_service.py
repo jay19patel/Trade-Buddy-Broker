@@ -7,7 +7,7 @@ from typing import Optional
 from trade_buddy.entities.models import Account
 from trade_buddy.entities.schemas import RegistrationSchema, LoginSchema
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError
-from trade_buddy.core.response import TradeBuddyResponse
+from trade_buddy.core.response import TBResponse
 from trade_buddy.utils.security import SecurityManager
 from trade_buddy.repositories.account_repository import AccountRepository
 
@@ -19,7 +19,7 @@ class AuthService:
         self.account_repo = AccountRepository()
         self.security = SecurityManager()
     
-    async def register(self, data: RegistrationSchema) -> TradeBuddyResponse:
+    async def register(self, data: RegistrationSchema) -> TBResponse:
         """Register new user"""
         try:
             # Generate unique account ID
@@ -54,12 +54,10 @@ class AuthService:
                 expiry=timedelta(hours=24)
             )
             
-            return TradeBuddyResponse(
+            return TBResponse(
                 message="Registration successful",
-                payload={
-                    "account_id": account.account_id,
-                    "email_id": account.email_id,
-                    "full_name": account.full_name,
+                data={
+                    "user": account.model_dump_safe(),
                     "verification_token": token
                 }
             )
@@ -69,7 +67,7 @@ class AuthService:
                 raise
             raise ValidationError(f"Registration failed: {str(e)}")
     
-    async def login(self, data: LoginSchema) -> TradeBuddyResponse:
+    async def login(self, data: LoginSchema) -> TBResponse:
         """Login user"""
         try:
             # Find account
@@ -96,9 +94,9 @@ class AuthService:
                 expiry=timedelta(hours=24)
             )
             
-            return TradeBuddyResponse(
+            return TBResponse(
                 message="Login successful",
-                payload={
+                data={
                     "account_id": account.account_id,
                     "role": account.role,
                     "access_token": token,
@@ -131,7 +129,7 @@ class AuthService:
                 raise
             raise AuthenticationError(f"Token verification failed: {str(e)}")
     
-    async def verify_email(self, token: str) -> TradeBuddyResponse:
+    async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
         try:
             payload = self.security.decode_token(token)
@@ -148,14 +146,14 @@ class AuthService:
                 account.email_verified = True
                 await self.account_repo.update(account)
                 
-                return TradeBuddyResponse(
+                return TBResponse(
                     message="Email verified successfully",
-                    payload={"account_id": account.account_id}
+                    data={"account_id": account.account_id}
                 )
             
-            return TradeBuddyResponse(
+            return TBResponse(
                 message="Email already verified",
-                payload={"account_id": account.account_id}
+                data={"account_id": account.account_id}
             )
             
         except Exception as e:

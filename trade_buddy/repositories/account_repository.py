@@ -11,9 +11,9 @@ from trade_buddy.core.exceptions import DataNotFoundError, TradeBuddyException
 class AccountRepository(BaseRepository[Account]):
     """Repository for Account entities"""
     
-    def __init__(self):
-        self._accounts: Dict[str, Account] = {}
-        self._email_index: Dict[str, str] = {}  # email -> account_id mapping
+    # Use class-level storage so all instances share data
+    _accounts: Dict[str, Account] = {}
+    _email_index: Dict[str, str] = {}
     
     async def create(self, account: Account) -> Account:
         """Create new account"""
