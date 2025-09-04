@@ -33,6 +33,8 @@ class DatabaseSessionManager(Singleton):
         if not hasattr(self, 'initialized'):
             self._security = SecurityManager()
             self._db_manager = get_database_manager()
+            if self._db_manager is None:
+                raise RuntimeError("Database manager is not initialized")
             self.token_expiry_hours = 24
             self.initialized = True
     

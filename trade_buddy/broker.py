@@ -18,6 +18,7 @@ from trade_buddy.core.response import TBResponse
 from trade_buddy.core.database import get_database_manager, initialize_database
 from trade_buddy.core.session_manager import DatabaseSessionManager
 from trade_buddy.services.factory import ServiceFactory
+from trade_buddy.tasks import app as celery_app
 
 
 class TradeBuddy:
@@ -59,23 +60,13 @@ class TradeBuddy:
     def _get_service_factory(self):
         """Get service factory with lazy initialization - only when needed"""
         if self._service_factory is None:
-            try:
-                self._service_factory = ServiceFactory()
-            except Exception as e:
-                # Fallback for testing
-                print(f"Warning: Service factory initialization failed: {e}")
-                self._service_factory = None
+            self._service_factory = ServiceFactory()
         return self._service_factory
     
     def _get_session_manager(self):
         """Get session manager with lazy initialization - only when needed"""
         if self._session_manager is None:
-            try:
-                self._session_manager = DatabaseSessionManager()
-            except Exception as e:
-                # Fallback for testing - create a mock session manager
-                print(f"Warning: Session manager initialization failed: {e}")
-                self._session_manager = None
+            self._session_manager = DatabaseSessionManager()
         return self._session_manager
     
     # Quick access properties for basic usage
@@ -96,9 +87,7 @@ class TradeBuddy:
                 await initialize_database()
                 self._db_initialized = True
             except Exception as e:
-                print(f"Database initialization warning: {e}")
-                # Continue without database for testing
-                pass
+                raise TradeBuddyException(f"Database initialization failed: {e}")
     
     async def _initialize_demo_data(self):
         """Initialize with demo account"""
@@ -227,7 +216,10 @@ class TradeBuddy:
             else:
                 schema = data
             
-            auth_service = self._get_service_factory().create_service('auth')
+            service_factory = self._get_service_factory()
+            if service_factory is None:
+                raise TradeBuddyException("Service factory not available. Please check dependencies.")
+            auth_service = service_factory.create_service('auth')
             response = await auth_service.login(schema)
             
             # Store session
@@ -440,15 +432,9 @@ class TradeBuddy:
             await self._initialize_database()
             db_manager = get_database_manager()
             await db_manager.truncate_all_tables()
-            
-            # Clear all sessions
             await self._get_session_manager().clear_all_sessions()
             self._current_session_id = None
-            
-            return TBResponse(
-                message="Database cleared successfully - all tables truncated",
-                data={"cleared": True}
-            )
+            return TBResponse(message="Database cleared successfully - all tables truncated", data={"cleared": True})
             
         except Exception as e:
             raise TradeBuddyException(f"Failed to clear database: {str(e)}")
@@ -459,6 +445,22 @@ class TradeBuddy:
         repo_factory.clear_all_repositories()
         await self._get_session_manager().clear_all_sessions()
         self._current_session_id = None
+
+    # Background helpers (Celery)
+    def clear_in_background(self) -> str:
+        """Enqueue clearing the database in background. Returns task id."""
+        task = celery_app.send_task("trade_buddy.clear_database")
+        return task.id
+
+    def delete_account_in_background(self, account_id: str) -> str:
+        """Enqueue account deletion in background. Returns task id."""
+        task = celery_app.send_task("trade_buddy.delete_account", args=[account_id])
+        return task.id
+
+    def cleanup_sessions_in_background(self) -> str:
+        """Enqueue expired sessions cleanup in background. Returns task id."""
+        task = celery_app.send_task("trade_buddy.cleanup_expired_sessions")
+        return task.id
     
     async def get_session_info(self) -> Optional[Dict[str, Any]]:
         """Get current session information"""

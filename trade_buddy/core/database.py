@@ -135,19 +135,13 @@ def get_database_manager() -> DatabaseManager:
     """Get global database manager instance"""
     global db_manager
     if db_manager is None:
-        try:
-            # Use environment variable or default to SQLite
-            db_url = os.getenv("DATABASE_URL")
-            if not db_url:
-                db_dir = Path("data")
-                db_dir.mkdir(exist_ok=True)
-                db_url = f"sqlite+aiosqlite:///{db_dir}/tradebuddy.db"
-            
-            db_manager = DatabaseManager(db_url)
-        except Exception as e:
-            print(f"Database manager creation warning: {e}")
-            # Return a mock database manager for testing
-            db_manager = None
+        # Always fall back to local SQLite; do not return None
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            db_dir = Path("data")
+            db_dir.mkdir(exist_ok=True)
+            db_url = f"sqlite+aiosqlite:///{db_dir}/tradebuddy.db"
+        db_manager = DatabaseManager(db_url)
     return db_manager
 
 
