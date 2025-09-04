@@ -54,6 +54,23 @@ async def run():
         {"symbol_id": "HDFC", "symbol_type": "Stocks"}
     ]).message)
 
+    print("\n== Positions ==")
+    op = await broker.open_position("RELIANCE", quantity=10, price=2500.0, side="BUY", stoploss=2450.0, target=2600.0)
+    pos_id = op.data["position"]["position_id"]
+    print(op.message, op.data)
+
+    upd = await broker.update_position_levels(pos_id, stoploss=2460.0, target=2590.0)
+    print(upd.message, upd.data)
+
+    open_list = await broker.get_open_positions()
+    print(open_list.message, open_list.data)
+
+    exited = await broker.exit_position(pos_id, exit_price=2550.0)
+    print(exited.message, exited.data)
+
+    hist = await broker.get_position_history()
+    print(hist.message, hist.data)
+
     print("\n== Session Info ==")
     print(await broker.get_session_info())
 

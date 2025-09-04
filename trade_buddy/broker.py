@@ -20,6 +20,7 @@ from trade_buddy.core.session_manager import DatabaseSessionManager
 from trade_buddy.services.auth_service import AuthService
 from trade_buddy.services.transaction_service import TransactionService
 from trade_buddy.services.price_service import PriceService
+from trade_buddy.services.position_service import PositionService
 from typing import Optional, List, Dict, Any
 
 
@@ -60,6 +61,7 @@ class TradeBuddy:
         self._transaction_service = None
         self._price_service = None
         self._session_manager = None
+        self._position_service = None
     
     def _get_auth_service(self):
         if self._auth_service is None:
@@ -75,6 +77,11 @@ class TradeBuddy:
         if self._price_service is None:
             self._price_service = PriceService()
         return self._price_service
+    
+    def _get_position_service(self):
+        if self._position_service is None:
+            self._position_service = PositionService()
+        return self._position_service
     
     def _get_session_manager(self):
         """Get session manager with lazy initialization - only when needed"""
@@ -349,6 +356,41 @@ class TradeBuddy:
             )
         except Exception as e:
             raise TradeBuddyException(f"Multiple price fetch failed: {str(e)}")
+
+    # Position APIs
+    async def open_position(self, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
+        account = await self._get_account_from_session()
+        try:
+            pos = self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
+            return TBResponse(message="Position opened", data={"position": pos})
+        except Exception as e:
+            raise TradeBuddyException(f"Open position failed: {str(e)}")
+
+    async def update_position_levels(self, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
+        account = await self._get_account_from_session()
+        try:
+            pos = self._get_position_service().update_levels(account, position_id, stoploss, target)
+            return TBResponse(message="Position levels updated", data={"position": pos})
+        except Exception as e:
+            raise TradeBuddyException(f"Update levels failed: {str(e)}")
+
+    async def exit_position(self, position_id: str, exit_price: float) -> TBResponse:
+        account = await self._get_account_from_session()
+        try:
+            pos = self._get_position_service().exit_position(account, position_id, exit_price)
+            return TBResponse(message="Position exited", data={"position": pos})
+        except Exception as e:
+            raise TradeBuddyException(f"Exit position failed: {str(e)}")
+
+    async def get_open_positions(self) -> TBResponse:
+        account = await self._get_account_from_session()
+        positions = self._get_position_service().get_open_positions(account.account_id)
+        return TBResponse(message="Open positions", data={"positions": positions})
+
+    async def get_position_history(self) -> TBResponse:
+        account = await self._get_account_from_session()
+        positions = self._get_position_service().get_position_history(account.account_id)
+        return TBResponse(message="Position history", data={"positions": positions})
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
