@@ -46,11 +46,48 @@ class TradeBuddy:
     
     def __init__(self):
         """Initialize Trade Buddy broker"""
-        self._service_factory = ServiceFactory()
-        self._session_manager = DatabaseSessionManager()
+        # Initialize basic properties first
         self._current_session_id: Optional[str] = None
         self._initialized = False
         self._db_initialized = False
+        self.test = "Test By jay"
+        
+        # Initialize services with lazy loading
+        self._service_factory = None
+        self._session_manager = None
+    
+    def _get_service_factory(self):
+        """Get service factory with lazy initialization - only when needed"""
+        if self._service_factory is None:
+            try:
+                self._service_factory = ServiceFactory()
+            except Exception as e:
+                # Fallback for testing
+                print(f"Warning: Service factory initialization failed: {e}")
+                self._service_factory = None
+        return self._service_factory
+    
+    def _get_session_manager(self):
+        """Get session manager with lazy initialization - only when needed"""
+        if self._session_manager is None:
+            try:
+                self._session_manager = DatabaseSessionManager()
+            except Exception as e:
+                # Fallback for testing - create a mock session manager
+                print(f"Warning: Session manager initialization failed: {e}")
+                self._session_manager = None
+        return self._session_manager
+    
+    # Quick access properties for basic usage
+    @property
+    def service_factory(self):
+        """Property access to service factory (may be slow on first access)"""
+        return self._get_service_factory()
+        
+    @property  
+    def session_manager(self):
+        """Property access to session manager (may be slow on first access)"""
+        return self._get_session_manager()
     
     async def _initialize_database(self):
         """Initialize database tables"""
@@ -69,7 +106,7 @@ class TradeBuddy:
             return
         
         try:
-            auth_service = self._service_factory.create_service('auth')
+            auth_service = self._get_service_factory().create_service('auth')
             
             # Create demo account
             from trade_buddy.utils.security import SecurityManager
@@ -85,7 +122,7 @@ class TradeBuddy:
                 description="Demo account for testing"
             )
             
-            repo_factory = self._service_factory.get_repository_factory()
+            repo_factory = self._get_service_factory().get_repository_factory()
             account_repo = repo_factory.get_account_repository()
             
             try:
@@ -103,12 +140,12 @@ class TradeBuddy:
         if not self._current_session_id:
             raise AuthenticationError("Please login first")
         
-        session_data = await self._session_manager.get_session(self._current_session_id)
+        session_data = await self._get_session_manager().get_session(self._current_session_id)
         if not session_data:
             raise AuthenticationError("Session expired, please login again")
         
         # Validate session token
-        if not await self._session_manager.validate_session(self._current_session_id):
+        if not await self._get_session_manager().validate_session(self._current_session_id):
             raise AuthenticationError("Invalid session, please login again")
         
         return session_data
@@ -146,7 +183,11 @@ class TradeBuddy:
             else:
                 schema = data
             
-            auth_service = self._service_factory.create_service('auth')
+            service_factory = self._get_service_factory()
+            if service_factory is None:
+                raise TradeBuddyException("Service factory not available. Please check dependencies.")
+            
+            auth_service = service_factory.create_service('auth')
             response = await auth_service.register(schema)
             
             # Convert to new TBResponse format
@@ -186,7 +227,7 @@ class TradeBuddy:
             else:
                 schema = data
             
-            auth_service = self._service_factory.create_service('auth')
+            auth_service = self._get_service_factory().create_service('auth')
             response = await auth_service.login(schema)
             
             # Store session
@@ -195,7 +236,7 @@ class TradeBuddy:
                 account = await auth_service.verify_token(access_token)
                 
                 # Create session for the user
-                self._current_session_id, jwt_token = await self._session_manager.create_session(
+                self._current_session_id, jwt_token = await self._get_session_manager().create_session(
                     account, 
                     device_info="Trade Buddy SDK",
                     ip_address="localhost"
@@ -230,7 +271,7 @@ class TradeBuddy:
             else:
                 schema = data
             
-            transaction_service = self._service_factory.create_service('transaction')
+            transaction_service = self._get_service_factory().create_service('transaction')
             response = await transaction_service.create_transaction(account, schema)
             
             # Convert to new TBResponse format
@@ -260,7 +301,7 @@ class TradeBuddy:
     def search_symbols(self, query: str) -> TBResponse:
         """Search for stock/option symbols"""
         try:
-            price_service = self._service_factory.create_service('price')
+            price_service = self._get_service_factory().create_service('price')
             symbols = price_service.search_symbols(query)
             
             # Convert to new TBResponse format
@@ -275,7 +316,7 @@ class TradeBuddy:
     def get_live_price(self, symbol_id: str, symbol_type: str = "Stocks") -> TBResponse:
         """Get live price for a symbol"""
         try:
-            price_service = self._service_factory.create_service('price')
+            price_service = self._get_service_factory().create_service('price')
             price_data = price_service.get_stock_price(symbol_id, symbol_type)
             
             if price_data:
@@ -295,7 +336,7 @@ class TradeBuddy:
     def get_multiple_prices(self, symbols: List[Dict[str, str]]) -> TBResponse:
         """Get live prices for multiple symbols"""
         try:
-            price_service = self._service_factory.create_service('price')
+            price_service = self._get_service_factory().create_service('price')
             prices = price_service.get_multiple_prices(symbols)
             
             # Convert to new TBResponse format
@@ -310,7 +351,7 @@ class TradeBuddy:
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
         try:
-            auth_service = self._service_factory.create_service('auth')
+            auth_service = self._get_service_factory().create_service('auth')
             response = await auth_service.verify_email(token)
             
             # Convert to new TBResponse format
@@ -330,7 +371,7 @@ class TradeBuddy:
     async def logout(self) -> TBResponse:
         """Logout current user"""
         if self._current_session_id:
-            await self._session_manager.destroy_session(self._current_session_id)
+            await self._get_session_manager().destroy_session(self._current_session_id)
             self._current_session_id = None
         
         return TBResponse(
@@ -350,7 +391,7 @@ class TradeBuddy:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 return False  # Cannot validate in running loop context
-            return loop.run_until_complete(self._session_manager.validate_session(self._current_session_id))
+            return loop.run_until_complete(self._get_session_manager().validate_session(self._current_session_id))
         except:
             return False
     
@@ -376,7 +417,7 @@ class TradeBuddy:
             
             # If current account is being deleted, logout
             if self._current_session_id:
-                session_data = await self._session_manager.get_session(self._current_session_id)
+                session_data = await self._get_session_manager().get_session(self._current_session_id)
                 if session_data and session_data['account_id'] == account_id:
                     await self.logout()
             
@@ -401,7 +442,7 @@ class TradeBuddy:
             await db_manager.truncate_all_tables()
             
             # Clear all sessions
-            await self._session_manager.clear_all_sessions()
+            await self._get_session_manager().clear_all_sessions()
             self._current_session_id = None
             
             return TBResponse(
@@ -414,9 +455,9 @@ class TradeBuddy:
     
     async def clear_all_data(self):
         """Clear all data (for testing purposes only) - Legacy method"""
-        repo_factory = self._service_factory.get_repository_factory()
+        repo_factory = self._get_service_factory().get_repository_factory()
         repo_factory.clear_all_repositories()
-        await self._session_manager.clear_all_sessions()
+        await self._get_session_manager().clear_all_sessions()
         self._current_session_id = None
     
     async def get_session_info(self) -> Optional[Dict[str, Any]]:
@@ -424,16 +465,16 @@ class TradeBuddy:
         if not self._current_session_id:
             return None
         
-        return await self._session_manager.get_session_info(self._current_session_id)
+        return await self._get_session_manager().get_session_info(self._current_session_id)
     
     def get_active_sessions_count(self) -> int:
         """Get count of active sessions (admin feature)"""
-        return self._session_manager.get_active_sessions_count()
+        return self._get_session_manager().get_active_sessions_count()
     
     async def validate_token(self, token: str) -> TBResponse:
         """Validate JWT token manually"""
         try:
-            auth_service = self._service_factory.create_service('auth')
+            auth_service = self._get_service_factory().create_service('auth')
             account = await auth_service.verify_token(token)
             
             if account:

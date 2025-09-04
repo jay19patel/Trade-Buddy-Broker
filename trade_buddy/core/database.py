@@ -10,9 +10,6 @@ from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator, Optional
 from pathlib import Path
 
-from trade_buddy.entities.models import Account, Transaction, Session
-
-
 class DatabaseManager:
     """SQLite database manager with async support"""
     
