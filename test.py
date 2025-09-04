@@ -18,7 +18,7 @@ async def test_registration_and_login():
     print("=" * 60)
     
     broker = TradeBuddy()
-    
+    print("Object Created >")
     # Test Registration
     registration_data = {
         "email_id": "test@example.com",
