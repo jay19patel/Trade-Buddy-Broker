@@ -9,14 +9,14 @@ from trade_buddy.entities.schemas import RegistrationSchema, LoginSchema
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError
 from trade_buddy.core.response import TradeBuddyResponse
 from trade_buddy.utils.security import SecurityManager
-from .factory import RepositoryFactory
+from trade_buddy.repositories.account_repository import AccountRepository
 
 
 class AuthService:
     """Authentication service"""
     
-    def __init__(self, repository_factory: RepositoryFactory):
-        self.account_repo = repository_factory.get_account_repository()
+    def __init__(self):
+        self.account_repo = AccountRepository()
         self.security = SecurityManager()
     
     async def register(self, data: RegistrationSchema) -> TradeBuddyResponse:

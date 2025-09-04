@@ -7,15 +7,16 @@ from trade_buddy.entities.schemas import TransactionSchema
 from trade_buddy.core.exceptions import InsufficientFundsError, ValidationError
 from trade_buddy.core.response import TradeBuddyResponse
 from trade_buddy.utils.security import SecurityManager
-from .factory import RepositoryFactory
+from trade_buddy.repositories.account_repository import AccountRepository
+from trade_buddy.repositories.transaction_repository import TransactionRepository
 
 
 class TransactionService:
     """Transaction management service"""
     
-    def __init__(self, repository_factory: RepositoryFactory):
-        self.transaction_repo = repository_factory.get_transaction_repository()
-        self.account_repo = repository_factory.get_account_repository()
+    def __init__(self):
+        self.transaction_repo = TransactionRepository()
+        self.account_repo = AccountRepository()
         self.security = SecurityManager()
     
     async def create_transaction(self, account: Account, data: TransactionSchema) -> TradeBuddyResponse:

@@ -17,7 +17,9 @@ from trade_buddy.core.exceptions import AuthenticationError, ValidationError, Tr
 from trade_buddy.core.response import TBResponse
 from trade_buddy.core.database import get_database_manager, initialize_database
 from trade_buddy.core.session_manager import DatabaseSessionManager
-from trade_buddy.services.factory import ServiceFactory
+from trade_buddy.services.auth_service import AuthService
+from trade_buddy.services.transaction_service import TransactionService
+from trade_buddy.services.price_service import PriceService
 from trade_buddy.tasks import app as celery_app
 
 
@@ -54,14 +56,25 @@ class TradeBuddy:
         self.test = "Test By jay"
         
         # Initialize services with lazy loading
-        self._service_factory = None
+        self._auth_service = None
+        self._transaction_service = None
+        self._price_service = None
         self._session_manager = None
     
-    def _get_service_factory(self):
-        """Get service factory with lazy initialization - only when needed"""
-        if self._service_factory is None:
-            self._service_factory = ServiceFactory()
-        return self._service_factory
+    def _get_auth_service(self):
+        if self._auth_service is None:
+            self._auth_service = AuthService()
+        return self._auth_service
+    
+    def _get_transaction_service(self):
+        if self._transaction_service is None:
+            self._transaction_service = TransactionService()
+        return self._transaction_service
+    
+    def _get_price_service(self):
+        if self._price_service is None:
+            self._price_service = PriceService()
+        return self._price_service
     
     def _get_session_manager(self):
         """Get session manager with lazy initialization - only when needed"""
@@ -70,10 +83,7 @@ class TradeBuddy:
         return self._session_manager
     
     # Quick access properties for basic usage
-    @property
-    def service_factory(self):
-        """Property access to service factory (may be slow on first access)"""
-        return self._get_service_factory()
+    # Backward-compatibility shims removed
         
     @property  
     def session_manager(self):
@@ -95,7 +105,7 @@ class TradeBuddy:
             return
         
         try:
-            auth_service = self._get_service_factory().create_service('auth')
+            auth_service = self._get_auth_service()
             
             # Create demo account
             from trade_buddy.utils.security import SecurityManager
@@ -111,8 +121,8 @@ class TradeBuddy:
                 description="Demo account for testing"
             )
             
-            repo_factory = self._get_service_factory().get_repository_factory()
-            account_repo = repo_factory.get_account_repository()
+            from trade_buddy.repositories.account_repository import AccountRepository
+            account_repo = AccountRepository()
             
             try:
                 await account_repo.create(demo_account)
@@ -172,11 +182,7 @@ class TradeBuddy:
             else:
                 schema = data
             
-            service_factory = self._get_service_factory()
-            if service_factory is None:
-                raise TradeBuddyException("Service factory not available. Please check dependencies.")
-            
-            auth_service = service_factory.create_service('auth')
+            auth_service = self._get_auth_service()
             response = await auth_service.register(schema)
             
             # Convert to new TBResponse format
@@ -216,10 +222,7 @@ class TradeBuddy:
             else:
                 schema = data
             
-            service_factory = self._get_service_factory()
-            if service_factory is None:
-                raise TradeBuddyException("Service factory not available. Please check dependencies.")
-            auth_service = service_factory.create_service('auth')
+            auth_service = self._get_auth_service()
             response = await auth_service.login(schema)
             
             # Store session
@@ -263,7 +266,7 @@ class TradeBuddy:
             else:
                 schema = data
             
-            transaction_service = self._get_service_factory().create_service('transaction')
+            transaction_service = self._get_transaction_service()
             response = await transaction_service.create_transaction(account, schema)
             
             # Convert to new TBResponse format
@@ -293,7 +296,7 @@ class TradeBuddy:
     def search_symbols(self, query: str) -> TBResponse:
         """Search for stock/option symbols"""
         try:
-            price_service = self._get_service_factory().create_service('price')
+            price_service = self._get_price_service()
             symbols = price_service.search_symbols(query)
             
             # Convert to new TBResponse format
@@ -308,7 +311,7 @@ class TradeBuddy:
     def get_live_price(self, symbol_id: str, symbol_type: str = "Stocks") -> TBResponse:
         """Get live price for a symbol"""
         try:
-            price_service = self._get_service_factory().create_service('price')
+            price_service = self._get_price_service()
             price_data = price_service.get_stock_price(symbol_id, symbol_type)
             
             if price_data:
@@ -343,7 +346,7 @@ class TradeBuddy:
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
         try:
-            auth_service = self._get_service_factory().create_service('auth')
+            auth_service = self._get_auth_service()
             response = await auth_service.verify_email(token)
             
             # Convert to new TBResponse format
@@ -476,7 +479,7 @@ class TradeBuddy:
     async def validate_token(self, token: str) -> TBResponse:
         """Validate JWT token manually"""
         try:
-            auth_service = self._get_service_factory().create_service('auth')
+            auth_service = self._get_auth_service()
             account = await auth_service.verify_token(token)
             
             if account:
