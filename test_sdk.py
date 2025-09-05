@@ -40,20 +40,24 @@ async def run():
             print("Login failed:", login.message)
             return
         print("Login:", login.message)
+        # Extract account object for all subsequent calls
+        account = login.data.get("account_obj")
     except Exception as e:
         print("Login error:", e)
         return
 
     print("\n== Account Details ==")
-    acc = await broker.get_account_details()
+    # Already have account from login; fall back to broker helper if missing
+    account = account or await broker.get_account()
+    acc = await broker.get_account_details(account)
     print(acc.message, acc.data)
 
     print("\n== Create Deposit Transaction ==")
-    dep = await broker.create_transaction({"transaction_type": "DEPOSIT", "amount": 1000.0, "note": "Init deposit"})
+    dep = await broker.create_transaction(account, {"transaction_type": "DEPOSIT", "amount": 1000.0, "note": "Init deposit"})
     print(dep.message, dep.data)
 
     print("\n== Create Withdraw Transaction ==")
-    wd = await broker.create_transaction({"transaction_type": "WITHDRAW", "amount": 200.0, "note": "Test withdraw"})
+    wd = await broker.create_transaction(account, {"transaction_type": "WITHDRAW", "amount": 200.0, "note": "Test withdraw"})
     print(wd.message, wd.data)
 
     print("\n== Prices ==")
@@ -64,20 +68,20 @@ async def run():
     ]).message)
 
     print("\n== Positions ==")
-    op = await broker.open_position("RELIANCE", quantity=10, price=2500.0, side="BUY", stoploss=2450.0, target=2600.0)
+    op = await broker.open_position(account, "RELIANCE", quantity=10, price=2500.0, side="BUY", stoploss=2450.0, target=2600.0)
     pos_id = op.data["position"]["position_id"]
     print(op.message, op.data)
 
-    upd = await broker.update_position_levels(pos_id, stoploss=2460.0, target=2590.0)
+    upd = await broker.update_position_levels(account, pos_id, stoploss=2460.0, target=2590.0)
     print(upd.message, upd.data)
 
-    open_list = await broker.get_open_positions()
+    open_list = await broker.get_open_positions(account)
     print(open_list.message, open_list.data)
 
-    exited = await broker.exit_position(pos_id, exit_price=2550.0)
+    exited = await broker.exit_position(account, pos_id, exit_price=2550.0)
     print(exited.message, exited.data)
 
-    hist = await broker.get_position_history()
+    hist = await broker.get_position_history(account)
     print(hist.message, hist.data)
 
     print("\n== Session Info ==")

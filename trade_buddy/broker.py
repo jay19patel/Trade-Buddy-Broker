@@ -168,6 +168,10 @@ class TradeBuddy:
             raise AuthenticationError("Account not found")
         
         return account
+
+    # Public helper to fetch current Account once after login
+    async def get_account(self) -> Account:
+        return await self._get_account_from_session()
     
     async def registration(self, data: Dict[str, Any]) -> TBResponse:
         """
@@ -243,10 +247,13 @@ class TradeBuddy:
                     access_token=jwt_token,
                     session_id=self._current_session_id
                 )
-                return TBResponse(
-                    message="Login successful",
-                    data=login_data.model_dump()
-                )
+                # Include account object and serialized account for downstream use
+                data = login_data.model_dump()
+                data.update({
+                    "account": account.model_dump_safe(),
+                    "account_obj": account
+                })
+                return TBResponse(message="Login successful", data=data)
             else:
                 return TBResponse(message=response.message, data=None)
             
@@ -255,9 +262,8 @@ class TradeBuddy:
         except Exception as e:
             raise TradeBuddyException(f"Login failed: {str(e)}")
     
-    async def create_transaction(self, data: Dict[str, Any]) -> TBResponse:
+    async def create_transaction(self, account: Account, data: Dict[str, Any]) -> TBResponse:
         """Create transaction (deposit/withdraw)"""
-        account = await self._get_account_from_session()
         
         try:
             if isinstance(data, dict):
@@ -274,9 +280,8 @@ class TradeBuddy:
         except Exception as e:
             raise TradeBuddyException(f"Transaction failed: {str(e)}")
     
-    async def get_account_details(self) -> TBResponse:
+    async def get_account_details(self, account: Account) -> TBResponse:
         """Get current account details"""
-        account = await self._get_account_from_session()
         account_data = AccountData(**account.model_dump_safe())
         return TBResponse(
             message="Account details retrieved successfully",
@@ -358,57 +363,49 @@ class TradeBuddy:
             raise TradeBuddyException(f"Multiple price fetch failed: {str(e)}")
 
     # Position APIs
-    async def open_position(self, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def open_position(self, account: Account, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
             pos = await self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
             return TBResponse(message="Position opened", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Open position failed: {str(e)}")
 
-    async def update_position_levels(self, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def update_position_levels(self, account: Account, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
             pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
             return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
-    async def exit_position(self, position_id: str, exit_price: float) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def exit_position(self, account: Account, position_id: str, exit_price: float) -> TBResponse:
         try:
             pos = await self._get_position_service().exit_position(account, position_id, exit_price)
             return TBResponse(message="Position exited", data={"position": pos.model_dump()})
         except Exception as e:
             raise TradeBuddyException(f"Exit position failed: {str(e)}")
 
-    async def get_open_positions(self) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def get_open_positions(self, account: Account) -> TBResponse:
         positions = await self._get_position_service().get_open_positions(account.account_id)
         return TBResponse(message="Open positions", data={"positions": [p.model_dump() for p in positions]})
 
-    async def get_position_history(self) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def get_position_history(self, account: Account) -> TBResponse:
         positions = await self._get_position_service().get_position_history(account.account_id)
         return TBResponse(message="Position history", data={"positions": [p.model_dump() for p in positions]})
 
     # Advanced
-    async def pyramid(self, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def pyramid(self, account: Account, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:
         pos = await self._get_position_service().add_to_position(account, position_id, additional_quantity, new_price)
         return TBResponse(message="Pyramiding applied", data={"position": pos.model_dump()})
 
-    async def trailing(self, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
-        account = await self._get_account_from_session()
+    async def trailing(self, account: Account, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         if stoploss is not None or target is not None:
             await self._get_position_service().update_levels(account, position_id, stoploss, target)
         pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
         return TBResponse(message="Trailing partial exit applied", data={"position": pos.model_dump()})
 
-    async def update_leverage(self, leverage: float) -> TBResponse:
+    async def update_leverage(self, account: Account, leverage: float) -> TBResponse:
         if leverage <= 0:
             raise ValidationError("Leverage must be > 0")
-        account = await self._get_account_from_session()
         # Persist on account model (in-memory repo in this flow)
         from trade_buddy.repositories import AccountRepository
         repo = AccountRepository()
@@ -455,9 +452,8 @@ class TradeBuddy:
         except:
             return False
     
-    async def get_current_balance(self) -> float:
+    async def get_current_balance(self, account: Account) -> float:
         """Get current account balance"""
-        account = await self._get_account_from_session()
         return account.balance
     
     async def delete_account(self, account_id: str) -> TBResponse:
