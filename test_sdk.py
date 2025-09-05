@@ -4,6 +4,15 @@ from trade_buddy.broker import TradeBuddy
 
 
 async def run():
+    # Recreate DB schema to include latest columns (positions, leverage, etc.)
+    from trade_buddy.core.database import get_database_manager
+    db = get_database_manager()
+    try:
+        await db.drop_tables()
+    except Exception:
+        pass
+    await db.create_tables()
+
     broker = TradeBuddy()
 
     print("== Registration ==")

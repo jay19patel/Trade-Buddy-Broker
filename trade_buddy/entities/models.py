@@ -34,6 +34,7 @@ class Account(SQLModel, table=True):
     trailing_status: bool = Field(default=True)
     trailing_stoploss: float = Field(default=0.0)
     trailing_target: float = Field(default=0.0)
+    default_leverage: float = Field(default=1.0)
     created_datetime: datetime = Field(default_factory=datetime.now)
     
     # Relationships
@@ -79,6 +80,11 @@ class Session(SQLModel, table=True):
     account: Optional[Account] = Relationship()
 
 
+class PositionType(Enum):
+    LONG = "LONG"
+    SHORT = "SHORT"
+
+
 class PositionStatus(Enum):
     OPEN = "Open"
     CLOSED = "Closed"
@@ -92,15 +98,34 @@ class Position(SQLModel, table=True):
     account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
     symbol_id: str = Field(max_length=100)
     side: str = Field(max_length=10)  # BUY/SELL
-    quantity: int = Field()
+    position_type: str = Field(default=PositionType.LONG.value, max_length=10)
+    quantity: float = Field()
     avg_price: float = Field()
+    invested_amount: float = Field(default=0.0)
+    leverage: float = Field(default=1.0)
+    margin_used: float = Field(default=0.0)
+    trading_fee: float = Field(default=0.0)
     status: str = Field(default=PositionStatus.OPEN.value, max_length=10)
     opened_at: datetime = Field(default_factory=datetime.now)
     closed_at: Optional[datetime] = Field(default=None)
     exit_price: Optional[float] = Field(default=None)
     pnl: Optional[float] = Field(default=None)
+    pnl_percentage: Optional[float] = Field(default=None)
+    unrealized_pnl: Optional[float] = Field(default=None)
+    realized_pnl: Optional[float] = Field(default=None)
     stoploss: Optional[float] = Field(default=None)
     target: Optional[float] = Field(default=None)
+    strategy_name: Optional[str] = Field(default=None, max_length=100)
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+    # Pyramiding / Trailing
+    original_quantity: float = Field(default=0.0)
+    total_quantity: float = Field(default=0.0)
+    average_entry_price: float = Field(default=0.0)
+    pyramid_count: int = Field(default=0)
+    trailing_count: int = Field(default=0)
+    remaining_quantity: float = Field(default=0.0)
+    average_exit_price: float = Field(default=0.0)
     
     # Relationship
     account: Optional[Account] = Relationship()

@@ -391,6 +391,30 @@ class TradeBuddy:
         account = await self._get_account_from_session()
         positions = await self._get_position_service().get_position_history(account.account_id)
         return TBResponse(message="Position history", data={"positions": [p.model_dump() for p in positions]})
+
+    # Advanced
+    async def pyramid(self, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:
+        account = await self._get_account_from_session()
+        pos = await self._get_position_service().add_to_position(account, position_id, additional_quantity, new_price)
+        return TBResponse(message="Pyramiding applied", data={"position": pos.model_dump()})
+
+    async def trailing(self, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
+        account = await self._get_account_from_session()
+        if stoploss is not None or target is not None:
+            await self._get_position_service().update_levels(account, position_id, stoploss, target)
+        pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
+        return TBResponse(message="Trailing partial exit applied", data={"position": pos.model_dump()})
+
+    async def update_leverage(self, leverage: float) -> TBResponse:
+        if leverage <= 0:
+            raise ValidationError("Leverage must be > 0")
+        account = await self._get_account_from_session()
+        # Persist on account model (in-memory repo in this flow)
+        from trade_buddy.repositories import AccountRepository
+        repo = AccountRepository()
+        account.default_leverage = leverage
+        await repo.update(account)
+        return TBResponse(message="Default leverage updated", data={"leverage": leverage})
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
