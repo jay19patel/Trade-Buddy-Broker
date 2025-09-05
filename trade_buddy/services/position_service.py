@@ -64,7 +64,8 @@ class PositionService:
             raise ValueError("Position not found")
         multiplier = 1 if position.side == 'BUY' else -1
         pnl = round((exit_price - position.avg_price) * position.quantity * multiplier, 2)
-        await self.repo.close(position_id, exit_price, pnl)
+        pnl_pct = round((pnl / position.invested_amount) * 100, 4) if position.invested_amount else 0.0
+        await self.repo.close(position_id, exit_price, pnl, pnl_pct)
         closed = await self.repo.get_by_id(position_id)
         return closed
 

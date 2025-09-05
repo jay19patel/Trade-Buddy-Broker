@@ -66,13 +66,22 @@ class PositionRepository:
             await session.commit()
             return True
 
-    async def close(self, position_id: str, exit_price: float, pnl: float):
+    async def close(self, position_id: str, exit_price: float, pnl: float, pnl_percentage: float):
         db = get_database_manager()
         async for session in db.get_session():
+            from datetime import datetime
             stmt = (
                 update(Position)
                 .where(Position.position_id == position_id)
-                .values(status=PositionStatus.CLOSED.value, exit_price=exit_price, pnl=pnl)
+                .values(
+                    status=PositionStatus.CLOSED.value,
+                    exit_price=exit_price,
+                    pnl=pnl,
+                    pnl_percentage=pnl_percentage,
+                    realized_pnl=pnl,
+                    unrealized_pnl=0.0,
+                    closed_at=datetime.now(),
+                )
             )
             await session.execute(stmt)
             await session.commit()

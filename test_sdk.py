@@ -75,6 +75,16 @@ async def run():
     upd = await broker.update_position_levels(account, pos_id, stoploss=2460.0, target=2590.0)
     print(upd.message, upd.data)
 
+    # Test pyramiding (add to position)
+    print("\n== Pyramiding ==")
+    pyr = await broker.pyramid(account, pos_id, additional_quantity=5, new_price=2510.0)
+    print(pyr.message, pyr.data)
+
+    # Test trailing (partial close + optional SL/TP update)
+    print("\n== Trailing (Partial Close) ==")
+    trl = await broker.trailing(account, pos_id, close_quantity=3, exit_price=2525.0, stoploss=2470.0, target=2580.0)
+    print(trl.message, trl.data)
+
     open_list = await broker.get_open_positions(account)
     print(open_list.message, open_list.data)
 
@@ -83,6 +93,15 @@ async def run():
 
     hist = await broker.get_position_history(account)
     print(hist.message, hist.data)
+
+    # Test leverage update and effect on new position
+    print("\n== Update Leverage ==")
+    lev = await broker.update_leverage(account, 2.0)
+    print(lev.message, lev.data)
+
+    print("\n== Open Position With New Leverage ==")
+    op2 = await broker.open_position(account, "HDFC", quantity=4, price=1600.0, side="BUY")
+    print(op2.message, op2.data)
 
     print("\n== Session Info ==")
     print(await broker.get_session_info())
