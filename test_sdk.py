@@ -33,22 +33,38 @@ async def run():
     except Exception as e:
         print("Registration error:", e)
 
+    print("\n== Email Verification ==")
+    try:
+        # Get verification token from registration response
+        verification_token = reg.data["verification_token"]
+        verify_response = await broker.verify_email(verification_token)
+        print("Email verification:", verify_response.message)
+    except Exception as e:
+        print("Email verification error:", e)
+
     print("\n== Login ==")
     try:
-        login = await broker.login({"user_id": "demo@tradebuddy.com", "password": "demo123"})
+        login = await broker.login({"user_id": "demo_test@example.com", "password": "password123"})
         if not login.data:
             print("Login failed:", login.message)
             return
         print("Login:", login.message)
         # Extract account object for all subsequent calls
-        account = login.data.get("account_obj")
+        account = login.data.get("account")
     except Exception as e:
         print("Login error:", e)
         return
 
     print("\n== Account Details ==")
     # Already have account from login; fall back to broker helper if missing
-    account = account or await broker.get_account()
+    if not account:
+        account = await broker.get_account()
+    
+    # If account is a dict, we need to convert it to Account model
+    if isinstance(account, dict):
+        from trade_buddy.entities.models import Account
+        account = Account(**account)
+    
     acc = await broker.get_account_details(account)
     print(acc.message, acc.data)
 
@@ -118,6 +134,34 @@ async def run():
     await db.cleanup_expired_sessions()
     print("Cleanup executed")
 
+    # Test notifications
+    print("\n== Notifications ==")
+    notifications = await broker.get_notifications(account, limit=10)
+    print("All notifications:", notifications.message, len(notifications.data.get("notifications", [])))
+    
+    # Test notifications by type
+    transaction_notifications = await broker.get_notifications_by_type(account, "TRANSACTION", limit=5)
+    print("Transaction notifications:", transaction_notifications.message, len(transaction_notifications.data.get("notifications", [])))
+    
+    position_notifications = await broker.get_notifications_by_type(account, "POSITION", limit=5)
+    print("Position notifications:", position_notifications.message, len(position_notifications.data.get("notifications", [])))
+    
+    # Test notification strategy change
+    print("\n== Change Notification Strategy ==")
+    broker.set_notification_strategy("multi_channel", enable_email=True, enable_sms=True)
+    print("Notification strategy changed to multi-channel")
+    
+    # Test error notification by trying invalid operation
+    print("\n== Test Error Notification ==")
+    try:
+        await broker.open_position(account, "INVALID", quantity=-1, price=100.0, side="BUY")
+    except Exception as e:
+        print(f"Expected error caught: {e}")
+    
+    # Check error notifications
+    error_notifications = await broker.get_notifications_by_type(account, "ERROR", limit=5)
+    print("Error notifications:", error_notifications.message, len(error_notifications.data.get("notifications", [])))
+    
     print("\n== Logout ==")
     lo = await broker.logout()
     print(lo.message, lo.data)

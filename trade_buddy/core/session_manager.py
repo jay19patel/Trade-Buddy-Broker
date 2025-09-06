@@ -76,11 +76,12 @@ class DatabaseSessionManager(Singleton):
                 session_obj = Session(
                     session_id=session_id,
                     account_id=account.account_id,
-                    jwt_token=jwt_token,
+                    email=account.email_id,
+                    full_name=account.full_name,
+                    balance=account.balance,
                     device_info=device_info or "Trade Buddy SDK",
                     ip_address=ip_address or "localhost",
-                    expires_at=expires_at,
-                    is_active=True
+                    expires_at=expires_at
                 )
                 
                 db_session.add(session_obj)

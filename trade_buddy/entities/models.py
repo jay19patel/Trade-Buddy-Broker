@@ -1,132 +1,171 @@
-"""
-Data models and enums for Trade Buddy SDK - SQLModel Implementation
-"""
-
-from datetime import datetime
-from typing import List, Optional
+from sqlmodel import SQLModel, Field, Column, DateTime, Text, Float, Integer, Boolean
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any
 from enum import Enum
-from sqlmodel import SQLModel, Field, Relationship
+import uuid
 
-
-# Enums
-class TransactionType(Enum):
+class TransactionType(str, Enum):
+    """Transaction type enumeration"""
     DEPOSIT = "Deposit"
     WITHDRAW = "Withdraw"
+    BUY = "Buy"
+    SELL = "Sell"
 
+class PositionType(str, Enum):
+    """Position type enumeration"""
+    LONG = "LONG"
+    SHORT = "SHORT"
 
-# SQLModel Database Tables
+class PositionStatus(str, Enum):
+    """Position status enumeration"""
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    PENDING = "PENDING"
+
+class NotificationType(str, Enum):
+    """Notification type enumeration"""
+    TRANSACTION = "TRANSACTION"
+    POSITION = "POSITION"
+    ERROR = "ERROR"
+    SYSTEM = "SYSTEM"
+
+class NotificationStatus(str, Enum):
+    """Notification status enumeration"""
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
+
 class Account(SQLModel, table=True):
-    """Account model with SQLModel"""
+    """Account model"""
     __tablename__ = "accounts"
     
-    account_id: str = Field(primary_key=True, max_length=50)
-    full_name: str = Field(max_length=100)
-    email_id: str = Field(unique=True, max_length=100)
-    password: str = Field(max_length=255)
+    account_id: str = Field(primary_key=True)
+    full_name: str
+    email_id: str = Field(unique=True, index=True)
+    password_hash: str
     balance: float = Field(default=0.0)
     email_verified: bool = Field(default=False)
-    role: str = Field(default="User", max_length=50)
+    role: str = Field(default="User")
     is_activate: bool = Field(default=True)
-    description: str = Field(default="Trade Buddy User", max_length=255)
+    description: Optional[str] = None
     max_trad_per_day: int = Field(default=5)
     base_stoploss: float = Field(default=0.0)
     base_target: float = Field(default=0.0)
     trailing_status: bool = Field(default=True)
     trailing_stoploss: float = Field(default=0.0)
     trailing_target: float = Field(default=0.0)
+    created_datetime: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     default_leverage: float = Field(default=1.0)
-    created_datetime: datetime = Field(default_factory=datetime.now)
     
-    # Relationships
-    transactions: List["Transaction"] = Relationship(back_populates="account")
-
-    def model_dump_safe(self):
-        """Convert to dictionary (exclude password)"""
+    # Margin management fields
+    total_margin: float = Field(default=0.0)
+    utilized_margin: float = Field(default=0.0)
+    available_margin: float = Field(default=0.0)
+    margin_percentage: float = Field(default=0.0)
+    
+    @property
+    def password(self) -> str:
+        """Alias for password_hash for backward compatibility"""
+        return self.password_hash
+    
+    def model_dump_safe(self) -> Dict[str, Any]:
+        """Safe model dump excluding sensitive fields"""
         data = self.model_dump()
-        data.pop('password', None)  # Remove password from response
+        # Remove sensitive fields
+        data.pop('password_hash', None)
+        data.pop('password', None)
         return data
 
-
 class Transaction(SQLModel, table=True):
-    """Transaction model with SQLModel"""
+    """Transaction model"""
     __tablename__ = "transactions"
     
-    transaction_id: str = Field(primary_key=True, max_length=50)
-    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
-    transaction_type: str = Field(max_length=20)  # TransactionType.value
-    transaction_amount: float = Field()
-    transaction_note: str = Field(default="", max_length=255)
-    transaction_datetime: datetime = Field(default_factory=datetime.now)
-    
-    # Relationships
-    account: Optional[Account] = Relationship(back_populates="transactions")
-
-
-class Session(SQLModel, table=True):
-    """User session model for authentication tracking"""
-    __tablename__ = "sessions"
-    
-    session_id: str = Field(primary_key=True, max_length=100)
-    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
-    jwt_token: str = Field(max_length=500)
-    device_info: Optional[str] = Field(default=None, max_length=200)
-    ip_address: Optional[str] = Field(default=None, max_length=50)
-    is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.now)
-    last_activity: datetime = Field(default_factory=datetime.now)
-    expires_at: datetime = Field()
-    
-    # Relationship
-    account: Optional[Account] = Relationship()
-
-
-class PositionType(Enum):
-    LONG = "LONG"
-    SHORT = "SHORT"
-
-
-class PositionStatus(Enum):
-    OPEN = "Open"
-    CLOSED = "Closed"
-
+    transaction_id: str = Field(primary_key=True)
+    account_id: str = Field(foreign_key="accounts.account_id")
+    transaction_type: TransactionType
+    transaction_amount: float
+    transaction_note: Optional[str] = None
+    transaction_datetime: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Position(SQLModel, table=True):
-    """Trading position model"""
+    """Position model with advanced features"""
     __tablename__ = "positions"
     
-    position_id: str = Field(primary_key=True, max_length=50)
-    account_id: str = Field(foreign_key="accounts.account_id", max_length=50)
-    symbol_id: str = Field(max_length=100)
-    side: str = Field(max_length=10)  # BUY/SELL
-    position_type: str = Field(default=PositionType.LONG.value, max_length=10)
-    quantity: float = Field()
-    avg_price: float = Field()
-    invested_amount: float = Field(default=0.0)
+    position_id: str = Field(primary_key=True)
+    account_id: str = Field(foreign_key="accounts.account_id")
+    symbol_id: str
+    side: str  # BUY/SELL
+    position_type: PositionType = PositionType.LONG
+    quantity: float
+    avg_price: float
+    invested_amount: float
     leverage: float = Field(default=1.0)
     margin_used: float = Field(default=0.0)
     trading_fee: float = Field(default=0.0)
-    status: str = Field(default=PositionStatus.OPEN.value, max_length=10)
-    opened_at: datetime = Field(default_factory=datetime.now)
-    closed_at: Optional[datetime] = Field(default=None)
-    exit_price: Optional[float] = Field(default=None)
-    pnl: Optional[float] = Field(default=None)
-    pnl_percentage: Optional[float] = Field(default=None)
-    unrealized_pnl: Optional[float] = Field(default=None)
-    realized_pnl: Optional[float] = Field(default=None)
-    stoploss: Optional[float] = Field(default=None)
-    target: Optional[float] = Field(default=None)
-    strategy_name: Optional[str] = Field(default=None, max_length=100)
-    notes: Optional[str] = Field(default=None, max_length=500)
-
-    # Pyramiding / Trailing
+    status: PositionStatus = PositionStatus.OPEN
+    
+    # Risk management
+    stoploss: Optional[float] = None
+    target: Optional[float] = None
+    
+    # Performance metrics
+    pnl: Optional[float] = None
+    pnl_percentage: Optional[float] = None
+    unrealized_pnl: Optional[float] = None
+    realized_pnl: Optional[float] = None
+    
+    # Timestamps
+    opened_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    closed_at: Optional[datetime] = None
+    exit_price: Optional[float] = None
+    
+    # Strategy info
+    strategy_name: Optional[str] = None
+    notes: Optional[str] = None
+    
+    # Advanced features - Pyramiding
     original_quantity: float = Field(default=0.0)
     total_quantity: float = Field(default=0.0)
     average_entry_price: float = Field(default=0.0)
     pyramid_count: int = Field(default=0)
+    
+    # Advanced features - Trailing
     trailing_count: int = Field(default=0)
     remaining_quantity: float = Field(default=0.0)
     average_exit_price: float = Field(default=0.0)
-    
-    # Relationship
-    account: Optional[Account] = Relationship()
 
+class Notification(SQLModel, table=True):
+    """Notification model for storing all types of notifications"""
+    __tablename__ = "notifications"
+    
+    notification_id: str = Field(primary_key=True, default_factory=lambda: str(uuid.uuid4()))
+    account_id: str = Field(foreign_key="accounts.account_id")
+    notification_type: NotificationType
+    title: str
+    message: str
+    data: Optional[str] = Field(default=None, sa_column=Column(Text))  # Store as JSON string
+    status: NotificationStatus = NotificationStatus.PENDING
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sent_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    
+    # For error notifications
+    error_class: Optional[str] = None
+    error_function: Optional[str] = None
+    error_file: Optional[str] = None
+    error_line: Optional[int] = None
+
+class Session(SQLModel, table=True):
+    """Session model"""
+    __tablename__ = "sessions"
+    
+    session_id: str = Field(primary_key=True)
+    account_id: str = Field(foreign_key="accounts.account_id")
+    email: str
+    full_name: str
+    balance: float
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime
+    device_info: Optional[str] = None
+    ip_address: Optional[str] = None

@@ -31,7 +31,7 @@ class AuthService:
             account = Account(
                 account_id=account_id,
                 email_id=data.email_id,
-                password=self.security.generate_hash_password(data.password),
+                password_hash=self.security.generate_hash_password(data.password),
                 full_name=data.full_name,
                 max_trad_per_day=data.max_trad_per_day,
                 base_stoploss=data.base_stoploss,

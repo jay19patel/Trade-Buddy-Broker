@@ -3,66 +3,78 @@ Transaction repository implementation
 """
 
 from typing import List, Optional, Dict
+from sqlmodel import select, delete
 from .base import BaseRepository
 from trade_buddy.entities.models import Transaction
 from trade_buddy.core.exceptions import DataNotFoundError
+from trade_buddy.core.database import get_database_manager
 
 
 class TransactionRepository(BaseRepository[Transaction]):
     """Repository for Transaction entities"""
     
-    def __init__(self):
-        self._transactions: Dict[str, Transaction] = {}
-        self._account_index: Dict[str, List[str]] = {}  # account_id -> [transaction_ids]
-    
     async def create(self, transaction: Transaction) -> Transaction:
         """Create new transaction"""
-        self._transactions[transaction.transaction_id] = transaction
-        
-        # Update account index
-        if transaction.account_id not in self._account_index:
-            self._account_index[transaction.account_id] = []
-        self._account_index[transaction.account_id].append(transaction.transaction_id)
-        
-        return transaction
+        db = get_database_manager()
+        async for session in db.get_session():
+            session.add(transaction)
+            await session.commit()
+            await session.refresh(transaction)
+            return transaction
     
     async def get_by_id(self, transaction_id: str) -> Optional[Transaction]:
         """Get transaction by ID"""
-        return self._transactions.get(transaction_id)
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = select(Transaction).where(Transaction.transaction_id == transaction_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
     
-    async def get_by_account(self, account_id: str) -> List[Transaction]:
-        """Get transactions by account ID"""
-        transaction_ids = self._account_index.get(account_id, [])
-        return [self._transactions[txn_id] for txn_id in transaction_ids if txn_id in self._transactions]
-    
-    async def update(self, transaction: Transaction) -> Transaction:
-        """Update transaction"""
-        if transaction.transaction_id not in self._transactions:
-            raise DataNotFoundError("Transaction", transaction.transaction_id)
-        
-        self._transactions[transaction.transaction_id] = transaction
-        return transaction
-    
-    async def delete(self, transaction_id: str) -> bool:
-        """Delete transaction"""
-        if transaction_id not in self._transactions:
-            return False
-        
-        transaction = self._transactions[transaction_id]
-        del self._transactions[transaction_id]
-        
-        # Update account index
-        if transaction.account_id in self._account_index:
-            if transaction_id in self._account_index[transaction.account_id]:
-                self._account_index[transaction.account_id].remove(transaction_id)
-        
-        return True
+    async def get_by_account(self, account_id: str, limit: int = 100) -> List[Transaction]:
+        """Get transactions for an account"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = (
+                select(Transaction)
+                .where(Transaction.account_id == account_id)
+                .order_by(Transaction.transaction_datetime.desc())
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
     
     async def get_all(self) -> List[Transaction]:
         """Get all transactions"""
-        return list(self._transactions.values())
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = select(Transaction).order_by(Transaction.transaction_datetime.desc())
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+    
+    async def update(self, transaction: Transaction) -> Transaction:
+        """Update transaction"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            # For transactions, we typically don't update them once created
+            # But if needed, we can implement this
+            session.add(transaction)
+            await session.commit()
+            await session.refresh(transaction)
+            return transaction
+    
+    async def delete(self, transaction_id: str) -> bool:
+        """Delete transaction"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = delete(Transaction).where(Transaction.transaction_id == transaction_id)
+            await session.execute(stmt)
+            await session.commit()
+            return True
     
     async def clear_all(self):
         """Clear all data (for testing)"""
-        self._transactions.clear()
-        self._account_index.clear()
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = delete(Transaction)
+            await session.execute(stmt)
+            await session.commit()

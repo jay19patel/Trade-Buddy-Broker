@@ -21,6 +21,8 @@ from trade_buddy.services.auth_service import AuthService
 from trade_buddy.services.transaction_service import TransactionService
 from trade_buddy.services.price_service import PriceService
 from trade_buddy.services.position_service import PositionService
+from trade_buddy.services.notification_service import NotificationService
+from trade_buddy.patterns.observer import get_caller_info
 from typing import Optional, List, Dict, Any
 
 
@@ -62,6 +64,7 @@ class TradeBuddy:
         self._price_service = None
         self._session_manager = None
         self._position_service = None
+        self._notification_service = None
     
     def _get_auth_service(self):
         if self._auth_service is None:
@@ -82,6 +85,11 @@ class TradeBuddy:
         if self._position_service is None:
             self._position_service = PositionService()
         return self._position_service
+    
+    def _get_notification_service(self):
+        if self._notification_service is None:
+            self._notification_service = NotificationService()
+        return self._notification_service
     
     def _get_session_manager(self):
         """Get session manager with lazy initialization - only when needed"""
@@ -273,11 +281,46 @@ class TradeBuddy:
             
             transaction_service = self._get_transaction_service()
             response = await transaction_service.create_transaction(account, schema)
+            
+            # Notify observers about transaction creation
+            if response.data and response.data.get("transaction"):
+                notification_service = self._get_notification_service()
+                await notification_service.notify("transaction_created", {
+                    "account_id": account.account_id,
+                    "transaction": response.data["transaction"]
+                })
+            
             return response
             
         except (ValidationError, TradeBuddyException):
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": TradeBuddyException(f"Transaction validation failed"),
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass  # Don't let notification errors break the main flow
             raise
         except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass  # Don't let notification errors break the main flow
             raise TradeBuddyException(f"Transaction failed: {str(e)}")
     
     async def get_account_details(self, account: Account) -> TBResponse:
@@ -318,8 +361,10 @@ class TradeBuddy:
                     "high_price": price_data.get("high") or price_data.get("high_price"),
                     "low_price": price_data.get("low") or price_data.get("low_price"),
                     "prev_close": price_data.get("close") or price_data.get("prev_close"),
-                    "change": price_data.get("change"),
-                    "change_percent": price_data.get("changePercent") or price_data.get("change_percent"),
+                    "change": price_data.get("change") or 0.0,
+                    "change_percent": price_data.get("changePercent") or price_data.get("change_percent") or 0.0,
+                    "volume": price_data.get("volume") or 0,
+                    "last_updated": price_data.get("last_updated")
                 }
                 price = PriceData(**mapped)
                 return TBResponse(
@@ -351,8 +396,10 @@ class TradeBuddy:
                     "high_price": price.get("high") or price.get("high_price"),
                     "low_price": price.get("low") or price.get("low_price"),
                     "prev_close": price.get("close") or price.get("prev_close"),
-                    "change": price.get("change"),
-                    "change_percent": price.get("changePercent") or price.get("change_percent"),
+                    "change": price.get("change") or 0.0,
+                    "change_percent": price.get("changePercent") or price.get("change_percent") or 0.0,
+                    "volume": price.get("volume") or 0,
+                    "last_updated": price.get("last_updated")
                 }
                 prices_data.append(PriceData(**mapped))
             return TBResponse(
@@ -366,22 +413,92 @@ class TradeBuddy:
     async def open_position(self, account: Account, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
             pos = await self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
+            
+            # Notify observers about position opened
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_opened", {
+                "account_id": account.account_id,
+                "position": pos
+            })
+            
             return TBResponse(message="Position opened", data={"position": pos.model_dump()})
         except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
             raise TradeBuddyException(f"Open position failed: {str(e)}")
 
     async def update_position_levels(self, account: Account, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
             pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
+            
+            # Notify observers about position updated
+            changes = {}
+            if stoploss is not None:
+                changes["stoploss"] = stoploss
+            if target is not None:
+                changes["target"] = target
+                
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_updated", {
+                "account_id": account.account_id,
+                "position": pos,
+                "changes": changes
+            })
+            
             return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
         except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
             raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
     async def exit_position(self, account: Account, position_id: str, exit_price: float) -> TBResponse:
         try:
             pos = await self._get_position_service().exit_position(account, position_id, exit_price)
+            
+            # Notify observers about position closed
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_closed", {
+                "account_id": account.account_id,
+                "position": pos
+            })
+            
             return TBResponse(message="Position exited", data={"position": pos.model_dump()})
         except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
             raise TradeBuddyException(f"Exit position failed: {str(e)}")
 
     async def get_open_positions(self, account: Account) -> TBResponse:
@@ -394,24 +511,102 @@ class TradeBuddy:
 
     # Advanced
     async def pyramid(self, account: Account, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:
-        pos = await self._get_position_service().add_to_position(account, position_id, additional_quantity, new_price)
-        return TBResponse(message="Pyramiding applied", data={"position": pos.model_dump()})
+        try:
+            pos = await self._get_position_service().add_to_position(account, position_id, additional_quantity, new_price)
+            
+            # Notify observers about position pyramided
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_pyramided", {
+                "account_id": account.account_id,
+                "position": pos,
+                "additional_quantity": additional_quantity,
+                "new_price": new_price
+            })
+            
+            return TBResponse(message="Pyramiding applied", data={"position": pos.model_dump()})
+        except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
+            raise TradeBuddyException(f"Pyramiding failed: {str(e)}")
 
     async def trailing(self, account: Account, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
-        if stoploss is not None or target is not None:
-            await self._get_position_service().update_levels(account, position_id, stoploss, target)
-        pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
-        return TBResponse(message="Trailing partial exit applied", data={"position": pos.model_dump()})
+        try:
+            if stoploss is not None or target is not None:
+                await self._get_position_service().update_levels(account, position_id, stoploss, target)
+            pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
+            
+            # Notify observers about position trailed
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_trailed", {
+                "account_id": account.account_id,
+                "position": pos,
+                "close_quantity": close_quantity,
+                "exit_price": exit_price
+            })
+            
+            return TBResponse(message="Trailing partial exit applied", data={"position": pos.model_dump()})
+        except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
+            raise TradeBuddyException(f"Trailing failed: {str(e)}")
 
     async def update_leverage(self, account: Account, leverage: float) -> TBResponse:
-        if leverage <= 0:
-            raise ValidationError("Leverage must be > 0")
-        # Persist on account model (in-memory repo in this flow)
-        from trade_buddy.repositories import AccountRepository
-        repo = AccountRepository()
-        account.default_leverage = leverage
-        await repo.update(account)
-        return TBResponse(message="Default leverage updated", data={"leverage": leverage})
+        try:
+            if leverage <= 0:
+                raise ValidationError("Leverage must be > 0")
+            # Persist on account model (in-memory repo in this flow)
+            from trade_buddy.repositories import AccountRepository
+            repo = AccountRepository()
+            old_leverage = account.default_leverage
+            account.default_leverage = leverage
+            await repo.update(account)
+            
+            # Notify observers about leverage updated
+            notification_service = self._get_notification_service()
+            await notification_service.notify("leverage_updated", {
+                "account_id": account.account_id,
+                "old_leverage": old_leverage,
+                "new_leverage": leverage
+            })
+            
+            return TBResponse(message="Default leverage updated", data={"leverage": leverage})
+        except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
+            raise TradeBuddyException(f"Update leverage failed: {str(e)}")
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
@@ -455,6 +650,37 @@ class TradeBuddy:
     async def get_current_balance(self, account: Account) -> float:
         """Get current account balance"""
         return account.balance
+    
+    # Notification APIs
+    async def get_notifications(self, account: Account, limit: int = 50) -> TBResponse:
+        """Get notifications for account"""
+        notification_service = self._get_notification_service()
+        return await notification_service.get_notifications(account.account_id, limit)
+    
+    async def get_notifications_by_type(self, account: Account, notification_type: str, limit: int = 20) -> TBResponse:
+        """Get notifications by type for account"""
+        notification_service = self._get_notification_service()
+        return await notification_service.get_notifications_by_type(account.account_id, notification_type, limit)
+    
+    async def mark_notification_sent(self, notification_id: str) -> TBResponse:
+        """Mark notification as sent"""
+        notification_service = self._get_notification_service()
+        return await notification_service.mark_notification_sent(notification_id)
+    
+    async def delete_notification(self, notification_id: str) -> TBResponse:
+        """Delete notification"""
+        notification_service = self._get_notification_service()
+        return await notification_service.delete_notification(notification_id)
+    
+    def set_notification_strategy(self, strategy_type: str, **kwargs) -> None:
+        """Change notification strategy"""
+        notification_service = self._get_notification_service()
+        notification_service.set_notification_strategy(strategy_type, **kwargs)
+    
+    async def process_pending_notifications(self) -> TBResponse:
+        """Process all pending notifications"""
+        notification_service = self._get_notification_service()
+        return await notification_service.process_pending_notifications()
     
     async def delete_account(self, account_id: str) -> TBResponse:
         """

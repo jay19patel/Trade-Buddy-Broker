@@ -114,7 +114,7 @@ class DatabaseManager:
         async for session in self.get_session():
             try:
                 from sqlalchemy import text
-                await session.execute(text("DELETE FROM sessions WHERE expires_at < datetime('now') OR is_active = 0"))
+                await session.execute(text("DELETE FROM sessions WHERE expires_at < datetime('now')"))
                 await session.commit()
                 break
             except Exception as e:
