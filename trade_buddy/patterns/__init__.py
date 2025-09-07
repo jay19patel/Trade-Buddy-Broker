@@ -1,13 +1,10 @@
 from .observer import Observer, Subject, NotificationObserver, ErrorObserver, get_caller_info
-from .strategy import (
-    NotificationStrategy, 
-    DatabaseNotificationStrategy, 
-    EmailNotificationStrategy,
-    SMSNotificationStrategy,
-    PushNotificationStrategy,
-    NotificationContext,
-    MultiChannelNotificationStrategy,
-    NotificationStrategyFactory
+from .notification_provider import (
+    NotificationProvider,
+    DatabaseNotificationProvider,
+    EmailNotificationProvider,
+    SMSNotificationProvider,
+    PushNotificationProvider,
 )
 
 __all__ = [
@@ -16,12 +13,9 @@ __all__ = [
     "NotificationObserver",
     "ErrorObserver",
     "get_caller_info",
-    "NotificationStrategy",
-    "DatabaseNotificationStrategy",
-    "EmailNotificationStrategy", 
-    "SMSNotificationStrategy",
-    "PushNotificationStrategy",
-    "NotificationContext",
-    "MultiChannelNotificationStrategy",
-    "NotificationStrategyFactory"
+    "NotificationProvider",
+    "DatabaseNotificationProvider",
+    "EmailNotificationProvider", 
+    "SMSNotificationProvider",
+    "PushNotificationProvider",
 ]

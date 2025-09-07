@@ -2,22 +2,25 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from trade_buddy.entities.models import Notification, NotificationType, NotificationStatus
 from trade_buddy.repositories.notification_repository import NotificationRepository
-from trade_buddy.patterns.strategy import NotificationStrategyFactory, NotificationContext
 from trade_buddy.patterns.observer import Subject, NotificationObserver, ErrorObserver
 from trade_buddy.core.response import TBResponse
 
 class NotificationService(Subject):
-    """Service for managing notifications with observer pattern and strategy pattern"""
+    """Service for managing notifications in a simple, direct way"""
     
     def __init__(self):
         super().__init__()
         self.notification_repository = NotificationRepository()
-        
-        # Initialize notification strategy (database by default)
-        self.notification_strategy = NotificationStrategyFactory.create_database_strategy(
-            self.notification_repository
-        )
-        self.notification_context = NotificationContext(self.notification_strategy)
+        # Channel enable flags (database and push enabled by default)
+        self._database_enabled: bool = True
+        self._push_enabled: bool = True
+        self._email_enabled: bool = False
+        self._sms_enabled: bool = False
+
+        # Optional channel configs
+        self._email_config: Optional[Dict[str, Any]] = None
+        self._sms_config: Optional[Dict[str, Any]] = None
+        self._push_config: Optional[Dict[str, Any]] = None  # placeholder for future
         
         # Attach observers
         self.notification_observer = NotificationObserver(self)
@@ -55,25 +58,155 @@ class NotificationService(Subject):
                 error_line=error_line
             )
             
-            # Send notification using current strategy
-            success = await self.notification_context.send_notification(notification)
-            
-            if success:
-                return TBResponse(
-                    message="Notification created successfully",
-                    data={"notification": notification}
-                )
-            else:
-                return TBResponse(
-                    message="Failed to create notification",
-                    data=None
-                )
+            # Store in database if enabled
+            if self._database_enabled:
+                await self.notification_repository.create(notification)
+
+            # Try optional channel deliveries (best-effort)
+            await self._deliver_channels(title=title, message=message, data=data or {})
+            if self._database_enabled:
+                await self.notification_repository.mark_sent(notification.notification_id)
+            return TBResponse(
+                message="Notification created successfully",
+                data={"notification": notification}
+            )
                 
         except Exception as e:
+            try:
+                if 'notification' in locals():
+                    if self._database_enabled:
+                        await self.notification_repository.mark_failed(notification.notification_id, str(e))
+            except:
+                pass
             return TBResponse(
                 message=f"Error creating notification: {str(e)}",
                 data=None
             )
+
+    # ---------------------------
+    # Channel configuration APIs
+    # ---------------------------
+    def set_email_config(self, config: Dict[str, Any]) -> None:
+        """Configure SMTP for email notifications. Keys: smtp_host, smtp_port, username, password, from_email, to_email"""
+        self._email_config = config or {}
+        # Enabling email channel when config provided
+        self._email_enabled = True if config else self._email_enabled
+
+    def set_sms_config(self, config: Dict[str, Any]) -> None:
+        """Configure SMS webhook. Keys: webhook_url, api_key, to_phone, from_id (optional)"""
+        self._sms_config = config or {}
+        # Enabling sms channel when config provided
+        self._sms_enabled = True if config else self._sms_enabled
+
+    def set_push_config(self, config: Dict[str, Any]) -> None:
+        """Configure push provider (placeholder)"""
+        self._push_config = config or {}
+    # Subscription controls
+    def subscribe_channels(self, channels: List[str]) -> None:
+        channels = [c.lower() for c in channels]
+        if "database" in channels:
+            self._database_enabled = True
+        if "push" in channels:
+            self._push_enabled = True
+        if "email" in channels:
+            self._email_enabled = True
+        if "sms" in channels:
+            self._sms_enabled = True
+
+    def unsubscribe_channels(self, channels: List[str]) -> None:
+        channels = [c.lower() for c in channels]
+        if "database" in channels:
+            self._database_enabled = False
+        if "push" in channels:
+            self._push_enabled = False
+        if "email" in channels:
+            self._email_enabled = False
+        if "sms" in channels:
+            self._sms_enabled = False
+
+    # ---------------------------
+    # Internal helpers
+    # ---------------------------
+    async def _deliver_channels(self, title: str, message: str, data: Dict[str, Any]) -> None:
+        tasks = []
+        # Print-based push is enabled by flag, no config required
+        if self._push_enabled:
+            tasks.append(self._send_push(title, message, data))
+        if self._email_enabled:
+            tasks.append(self._send_email(title, message, data))
+        if self._sms_enabled:
+            tasks.append(self._send_sms(title, message, data))
+        if tasks:
+            # Run best-effort; don't raise if individual fails
+            import asyncio
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Optionally log failures
+            for r in results:
+                if isinstance(r, Exception):
+                    print(f"Channel delivery error: {r}")
+
+    async def _send_push(self, title: str, message: str, data: Dict[str, Any]) -> None:
+        # Placeholder push: simple print
+        print(f"PUSH: {title} - {message}")
+
+    async def _send_email(self, subject: str, body: str, data: Dict[str, Any]) -> None:
+        import asyncio
+        cfg = self._email_config or {}
+        host = cfg.get("smtp_host")
+        port = cfg.get("smtp_port", 587)
+        username = cfg.get("username")
+        password = cfg.get("password")
+        from_email = cfg.get("from_email")
+        to_email = cfg.get("to_email")
+        if not all([host, port, from_email, to_email]):
+            return
+        content = body
+        # Include simple key details if present
+        if data:
+            try:
+                import json as _json
+                content += "\n\n" + _json.dumps(data, ensure_ascii=False)
+            except:
+                pass
+
+        def _send():
+            import smtplib
+            from email.message import EmailMessage
+            msg = EmailMessage()
+            msg["Subject"] = subject
+            msg["From"] = from_email
+            msg["To"] = to_email
+            msg.set_content(content)
+            with smtplib.SMTP(host, port) as server:
+                server.starttls()
+                if username and password:
+                    server.login(username, password)
+                server.send_message(msg)
+        await asyncio.to_thread(_send)
+
+    async def _send_sms(self, title: str, message: str, data: Dict[str, Any]) -> None:
+        import asyncio
+        cfg = self._sms_config or {}
+        url = cfg.get("webhook_url")
+        api_key = cfg.get("api_key")
+        to_phone = cfg.get("to_phone")
+        if not all([url, to_phone]):
+            return
+        payload = {
+            "to": to_phone,
+            "text": f"{title}: {message}",
+            "meta": data
+        }
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        def _post():
+            import requests
+            requests.post(url, json=payload, headers=headers, timeout=10)
+        await asyncio.to_thread(_post)
+
+    # Removed telegram-specific push for now; replaced by simple print push
     
     async def get_notifications(self, account_id: str, limit: int = 50) -> TBResponse:
         """Get notifications for an account"""
@@ -181,73 +314,4 @@ class NotificationService(Subject):
                 data=None
             )
     
-    def set_notification_strategy(self, strategy_type: str, **kwargs) -> None:
-        """Change notification strategy"""
-        if strategy_type == "database":
-            self.notification_strategy = NotificationStrategyFactory.create_database_strategy(
-                self.notification_repository
-            )
-        elif strategy_type == "email":
-            self.notification_strategy = NotificationStrategyFactory.create_email_strategy(
-                kwargs.get("email_config")
-            )
-        elif strategy_type == "sms":
-            self.notification_strategy = NotificationStrategyFactory.create_sms_strategy(
-                kwargs.get("sms_config")
-            )
-        elif strategy_type == "push":
-            self.notification_strategy = NotificationStrategyFactory.create_push_strategy(
-                kwargs.get("push_config")
-            )
-        elif strategy_type == "multi_channel":
-            self.notification_strategy = NotificationStrategyFactory.create_multi_channel_strategy(
-                self.notification_repository,
-                enable_email=kwargs.get("enable_email", False),
-                enable_sms=kwargs.get("enable_sms", False),
-                enable_push=kwargs.get("enable_push", False),
-                email_config=kwargs.get("email_config"),
-                sms_config=kwargs.get("sms_config"),
-                push_config=kwargs.get("push_config")
-            )
-        
-        self.notification_context.set_strategy(self.notification_strategy)
-    
-    async def process_pending_notifications(self) -> TBResponse:
-        """Process all pending notifications"""
-        try:
-            pending_notifications = await self.notification_repository.get_pending()
-            processed_count = 0
-            failed_count = 0
-            
-            for notification in pending_notifications:
-                try:
-                    success = await self.notification_context.send_notification(notification)
-                    if success:
-                        await self.notification_repository.mark_sent(notification.notification_id)
-                        processed_count += 1
-                    else:
-                        await self.notification_repository.mark_failed(
-                            notification.notification_id, 
-                            "Strategy failed to send"
-                        )
-                        failed_count += 1
-                except Exception as e:
-                    await self.notification_repository.mark_failed(
-                        notification.notification_id, 
-                        str(e)
-                    )
-                    failed_count += 1
-            
-            return TBResponse(
-                message=f"Processed {processed_count} notifications, {failed_count} failed",
-                data={
-                    "processed": processed_count,
-                    "failed": failed_count,
-                    "total": len(pending_notifications)
-                }
-            )
-        except Exception as e:
-            return TBResponse(
-                message=f"Error processing pending notifications: {str(e)}",
-                data=None
-            )
+    # No strategy switching or background processing required anymore

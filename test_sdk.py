@@ -146,10 +146,19 @@ async def run():
     position_notifications = await broker.get_notifications_by_type(account, "POSITION", limit=5)
     print("Position notifications:", position_notifications.message, len(position_notifications.data.get("notifications", [])))
     
-    # Test notification strategy change
-    print("\n== Change Notification Strategy ==")
-    broker.set_notification_strategy("multi_channel", enable_email=True, enable_sms=True)
-    print("Notification strategy changed to multi-channel")
+    # Test notification subscriptions
+    print("\n== Notification Subscriptions ==")
+    # Defaults: database + push enabled
+    # Enable email channel (prints only)
+    broker.notification_subscribe(["email"])  # enable email
+    # Optionally set email config (dummy)
+    broker.notification_set_email({
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "from_email": "noreply@example.com",
+        "to_email": "demo_test@example.com"
+    })
+    print("Notification channels updated: +email")
     
     # Test error notification by trying invalid operation
     print("\n== Test Error Notification ==")

@@ -672,15 +672,26 @@ class TradeBuddy:
         notification_service = self._get_notification_service()
         return await notification_service.delete_notification(notification_id)
     
-    def set_notification_strategy(self, strategy_type: str, **kwargs) -> None:
-        """Change notification strategy"""
+    # New subscription-style APIs
+    def notification_subscribe(self, channels: List[str]) -> None:
         notification_service = self._get_notification_service()
-        notification_service.set_notification_strategy(strategy_type, **kwargs)
-    
-    async def process_pending_notifications(self) -> TBResponse:
-        """Process all pending notifications"""
+        notification_service.subscribe_channels(channels)
+
+    def notification_unsubscribe(self, channels: List[str]) -> None:
         notification_service = self._get_notification_service()
-        return await notification_service.process_pending_notifications()
+        notification_service.unsubscribe_channels(channels)
+
+    def notification_set_email(self, config: Dict[str, Any]) -> None:
+        notification_service = self._get_notification_service()
+        notification_service.set_email_config(config)
+
+    def notification_set_sms(self, config: Dict[str, Any]) -> None:
+        notification_service = self._get_notification_service()
+        notification_service.set_sms_config(config)
+
+    def notification_set_push(self, config: Dict[str, Any]) -> None:
+        notification_service = self._get_notification_service()
+        notification_service.set_push_config(config)
     
     async def delete_account(self, account_id: str) -> TBResponse:
         """
