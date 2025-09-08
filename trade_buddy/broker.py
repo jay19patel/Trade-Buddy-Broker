@@ -325,7 +325,16 @@ class TradeBuddy:
     
     async def get_account_details(self, account: Account) -> TBResponse:
         """Get current account details"""
-        account_data = AccountData(**account.model_dump_safe())
+        # Ensure margin stats are present in the response schema
+        account_payload = account.model_dump_safe()
+        account_payload.update({
+            "total_margin": getattr(account, "total_margin", 0.0),
+            "utilized_margin": getattr(account, "utilized_margin", 0.0),
+            "available_margin": getattr(account, "available_margin", 0.0),
+            "margin_percentage": getattr(account, "margin_percentage", 0.0),
+            "default_leverage": getattr(account, "default_leverage", 1.0),
+        })
+        account_data = AccountData(**account_payload)
         return TBResponse(
             message="Account details retrieved successfully",
             data={"account": account_data.model_dump()}

@@ -24,6 +24,12 @@ class UserData(BaseModel):
     trailing_stoploss: float
     trailing_target: float
     created_datetime: datetime
+    # Margin stats
+    total_margin: float
+    utilized_margin: float
+    available_margin: float
+    margin_percentage: float
+    default_leverage: float
     
     class Config:
         from_attributes = True
@@ -70,6 +76,12 @@ class AccountData(BaseModel):
     trailing_stoploss: float
     trailing_target: float
     created_datetime: datetime
+    # Margin stats
+    total_margin: float
+    utilized_margin: float
+    available_margin: float
+    margin_percentage: float
+    default_leverage: float
     
     class Config:
         from_attributes = True

@@ -47,7 +47,19 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"is_logged_in": bool(session.get("session_id")), "account_name": session.get("full_name")}
+        is_in = bool(session.get("session_id"))
+        name = session.get("full_name")
+        stats = None
+        if is_in and getattr(g, "account_obj", None) is not None:
+            acc = g.account_obj
+            stats = {
+                "balance": getattr(acc, "balance", 0.0),
+                "total_margin": getattr(acc, "total_margin", 0.0),
+                "utilized_margin": getattr(acc, "utilized_margin", 0.0),
+                "available_margin": getattr(acc, "available_margin", 0.0),
+                "margin_percentage": getattr(acc, "margin_percentage", 0.0),
+            }
+        return {"is_logged_in": is_in, "account_name": name, "account_stats": stats}
 
     @app.get("/")
     def home():
