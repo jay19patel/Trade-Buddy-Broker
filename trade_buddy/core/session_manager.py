@@ -7,7 +7,7 @@ Pure Database Session Manager
 """
 
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 
 from trade_buddy.entities.models import Account, Session
@@ -61,7 +61,7 @@ class DatabaseSessionManager(Singleton):
             "SessionId": session_id
         }
         
-        expires_at = datetime.now() + timedelta(hours=self.token_expiry_hours)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=self.token_expiry_hours)
         jwt_token = self._security.create_access_token(
             payload=token_payload,
             expiry=timedelta(hours=self.token_expiry_hours)
@@ -81,7 +81,9 @@ class DatabaseSessionManager(Singleton):
                     balance=account.balance,
                     device_info=device_info or "Trade Buddy SDK",
                     ip_address=ip_address or "localhost",
-                    expires_at=expires_at
+                    expires_at=expires_at,
+                    is_active=True,
+                    jwt_token=jwt_token
                 )
                 
                 db_session.add(session_obj)
@@ -104,12 +106,12 @@ class DatabaseSessionManager(Singleton):
                 result = await db_session.execute(stmt)
                 session_obj = result.scalar_one_or_none()
                 
-                if session_obj and session_obj.expires_at > datetime.now():
+                if session_obj and session_obj.expires_at > datetime.now(timezone.utc):
                     # Update last activity
                     await db_session.execute(
                         update(Session)
                         .where(Session.session_id == session_id)
-                        .values(last_activity=datetime.now())
+                        .values(last_activity=datetime.now(timezone.utc))
                     )
                     await db_session.commit()
                     

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Login - Trade Buddy{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded-lg shadow p-6">
+  <h1 class="text-xl font-semibold mb-4">Login</h1>
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="block text-sm mb-1">Email or Account ID</label>
+      <input name="user_id" class="w-full border rounded px-3 py-2" required />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Password</label>
+      <input type="password" name="password" class="w-full border rounded px-3 py-2" required />
+    </div>
+    <button class="w-full bg-slate-900 text-white py-2 rounded">Login</button>
+  </form>
+  <p class="text-sm text-slate-500 mt-3">No account? <a class="text-blue-600" href="{{ url_for('register') }}">Register</a></p>
+</div>
+{% endblock %}
+
+

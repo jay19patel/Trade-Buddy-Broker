@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Transactions - Trade Buddy{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow p-6 max-w-xl">
+  <h1 class="text-xl font-semibold mb-4">Create Transaction</h1>
+  <form method="post" class="space-y-4">
+    <div>
+      <label class="block text-sm mb-1">Type</label>
+      <select name="transaction_type" class="w-full border rounded px-3 py-2">
+        <option value="DEPOSIT">DEPOSIT</option>
+        <option value="WITHDRAW">WITHDRAW</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Amount</label>
+      <input type="number" step="0.01" name="amount" value="1000" class="w-full border rounded px-3 py-2" required />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Note</label>
+      <input name="note" value="Test" class="w-full border rounded px-3 py-2" />
+    </div>
+    <button class="bg-slate-900 text-white px-4 py-2 rounded">Submit</button>
+  </form>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mt-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold">Recent Transactions</h2>
+  </div>
+  {% if transactions and transactions|length %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-100">
+        <tr>
+          <th class="text-left px-3 py-2">ID</th>
+          <th class="text-left px-3 py-2">Type</th>
+          <th class="text-left px-3 py-2">Amount</th>
+          <th class="text-left px-3 py-2">Balance After</th>
+          <th class="text-left px-3 py-2">Note</th>
+          <th class="text-left px-3 py-2">Datetime</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr class="border-b">
+          <td class="px-3 py-2">{{ t.transaction_id or t.id }}</td>
+          <td class="px-3 py-2">{{ t.transaction_type or t.type }}</td>
+          <td class="px-3 py-2">₹{{ '%.2f'|format(t.transaction_amount or t.amount) }}</td>
+          <td class="px-3 py-2">{% if t.balance_after is defined %}₹{{ '%.2f'|format(t.balance_after) }}{% else %}-{% endif %}</td>
+          <td class="px-3 py-2">{{ t.transaction_note or t.note or '-' }}</td>
+          <td class="px-3 py-2">{{ t.transaction_datetime or t.created_datetime }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-500">No transactions yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+

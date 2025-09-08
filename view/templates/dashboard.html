@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Trade Buddy{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <a href="{{ url_for('account') }}" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+    <h2 class="font-semibold">Account</h2>
+    <p class="text-sm text-slate-500">View your account details</p>
+  </a>
+  <a href="{{ url_for('transactions') }}" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+    <h2 class="font-semibold">Transactions</h2>
+    <p class="text-sm text-slate-500">Deposit or withdraw funds</p>
+  </a>
+  <a href="{{ url_for('positions') }}" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+    <h2 class="font-semibold">Positions</h2>
+    <p class="text-sm text-slate-500">Open positions and manage</p>
+  </a>
+  <a href="{{ url_for('prices') }}" class="block bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+    <h2 class="font-semibold">Prices</h2>
+    <p class="text-sm text-slate-500">Search symbols and check prices</p>
+  </a>
+</div>
+{% endblock %}
+
+

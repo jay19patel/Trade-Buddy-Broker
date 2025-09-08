@@ -81,8 +81,8 @@ class AuthService:
                 raise AuthenticationError("Invalid credentials")
             
             # Check email verification
-            if not account.email_verified:
-                raise AuthenticationError("Email not verified")
+            # if not account.email_verified:
+            #     raise AuthenticationError("Email not verified")
             
             # Create access token
             token = self.security.create_access_token(

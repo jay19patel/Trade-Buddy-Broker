@@ -63,6 +63,7 @@ class TransactionService:
         """Get transaction history for account"""
         try:
             transactions = await self.transaction_repo.get_by_account(account.account_id)
-            return [txn.to_dict() for txn in transactions]
+            # Serialize SQLModel instances
+            return [t.model_dump() for t in transactions]
         except Exception as e:
             raise Exception(f"Failed to retrieve transaction history: {str(e)}")

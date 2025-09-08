@@ -169,3 +169,5 @@ class Session(SQLModel, table=True):
     expires_at: datetime
     device_info: Optional[str] = None
     ip_address: Optional[str] = None
+    is_active: bool = Field(default=True)
+    jwt_token: Optional[str] = None

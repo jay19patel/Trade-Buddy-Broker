@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Account - Trade Buddy{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow p-6">
+  <h1 class="text-xl font-semibold mb-4">Account Details</h1>
+  {% if account %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <tbody>
+        {% for key, value in account.items() %}
+        <tr class="border-b">
+          <td class="px-3 py-2 text-slate-500 capitalize">{{ key.replace('_',' ') }}</td>
+          <td class="px-3 py-2">
+            {% if key in ['balance','total_margin','utilized_margin','available_margin'] %}
+              ₹{{ '%.2f'|format(value) }}
+            {% elif 'datetime' in key or 'created_at' in key or 'opened_at' in key or 'closed_at' in key %}
+              {{ value }}
+            {% else %}
+              {{ value }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-slate-500">No data</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+
