@@ -6,6 +6,8 @@ import os
 import sys
 import asyncio
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Ensure project root is importable when running as a script
 CURRENT_DIR = os.path.dirname(__file__)
@@ -71,6 +73,30 @@ def create_app() -> Flask:
                 growth_pct = 0.0
             stats["growth_percentage_since_login"] = growth_pct
         return {"is_logged_in": is_in, "account_name": name, "account_stats": stats}
+
+    # Jinja filter to display datetimes in India timezone with AM/PM
+    def india_time(value, fmt: str = "%d-%m-%Y %I:%M:%S %p IST") -> str:
+        try:
+            if value is None or value == "":
+                return "-"
+            dt: datetime
+            if isinstance(value, str):
+                try:
+                    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except Exception:
+                    return value
+            elif isinstance(value, datetime):
+                dt = value
+            else:
+                return str(value)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+            ist = dt.astimezone(ZoneInfo("Asia/Kolkata"))
+            return ist.strftime(fmt)
+        except Exception:
+            return str(value)
+
+    app.jinja_env.filters["india_time"] = india_time
 
     @app.get("/")
     def home():
@@ -250,13 +276,18 @@ def create_app() -> Flask:
                 flash(str(e), "error")
         # fetch open positions to display
         positions = []
+        closed_positions = []
         try:
             if g.account_obj:
                 resp = run_async(broker.get_open_positions(g.account_obj))
                 positions = (resp.data or {}).get("positions", []) if resp else []
+                # also fetch closed position history for display
+                hist_resp = run_async(broker.get_position_history(g.account_obj))
+                closed_positions = (hist_resp.data or {}).get("positions", []) if hist_resp else []
         except Exception:
             positions = []
-        return render_template("positions.html", positions=positions)
+            closed_positions = []
+        return render_template("positions.html", positions=positions, closed_positions=closed_positions)
 
     @app.post("/positions/action")
     def positions_action():
@@ -266,8 +297,10 @@ def create_app() -> Flask:
         pid = request.form.get("position_id")
         try:
             if action == "exit":
-                exit_price = float(request.form.get("exit_price", 0))
-                resp = run_async(broker.exit_position(g.account_obj, pid, exit_price))
+                exit_price = float(request.form.get("exit_price", 0) or 0)
+                close_qty_raw = request.form.get("close_quantity")
+                close_qty = float(close_qty_raw) if close_qty_raw else None
+                resp = run_async(broker.exit_position(g.account_obj, pid, exit_price, close_qty))
                 flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
             elif action == "levels":
                 sl = request.form.get("stoploss")
@@ -275,6 +308,11 @@ def create_app() -> Flask:
                 sl_val = float(sl) if sl else None
                 tg_val = float(tg) if tg else None
                 resp = run_async(broker.update_position_levels(g.account_obj, pid, sl_val, tg_val))
+                flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
+            elif action == "pyramid":
+                add_qty = float(request.form.get("additional_quantity", 0) or 0)
+                new_price = float(request.form.get("new_price", 0) or 0)
+                resp = run_async(broker.pyramid(g.account_obj, pid, add_qty, new_price))
                 flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
             elif action == "delete":
                 # Soft-delete by exiting at avg price if supported; else just flash
@@ -311,15 +349,11 @@ def create_app() -> Flask:
         if request.method == "POST":
             try:
                 lev = request.form.get("default_leverage")
-                tsl = request.form.get("trailing_stoploss")
-                tgt = request.form.get("trailing_target")
-                resp = run_async(broker.update_account_settings(
-                    g.account_obj,
-                    default_leverage=float(lev) if lev else None,
-                    trailing_stoploss=float(tsl) if tsl else None,
-                    trailing_target=float(tgt) if tgt else None
-                ))
-                flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
+                if lev:
+                    resp = run_async(broker.update_leverage(g.account_obj, float(lev)))
+                    flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
+                else:
+                    flash("Enter leverage", "error")
                 # refresh account in g
                 token = session.get("jwt")
                 if token:
@@ -329,8 +363,6 @@ def create_app() -> Flask:
         # current settings
         settings = {
             "default_leverage": getattr(g.account_obj, "default_leverage", 1.0),
-            "trailing_stoploss": getattr(g.account_obj, "trailing_stoploss", 10.0),
-            "trailing_target": getattr(g.account_obj, "trailing_target", 10.0),
         }
         return render_template("settings.html", settings=settings)
 

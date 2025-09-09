@@ -3,20 +3,12 @@
 {% block content %}
 <div class="bg-white rounded-lg shadow p-6 max-w-2xl">
   <h1 class="text-xl font-semibold mb-4">Account Settings</h1>
-  <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <form method="post" class="grid grid-cols-1 gap-4">
     <div>
       <label class="block text-sm mb-1">Default Leverage</label>
       <input type="number" step="0.1" min="0.1" name="default_leverage" value="{{ settings.default_leverage or 1.0 }}" class="w-full border rounded px-3 py-2" />
     </div>
     <div>
-      <label class="block text-sm mb-1">Trailing Stoploss %</label>
-      <input type="number" step="0.1" name="trailing_stoploss" value="{{ settings.trailing_stoploss or 10.0 }}" class="w-full border rounded px-3 py-2" />
-    </div>
-    <div>
-      <label class="block text-sm mb-1">Trailing Target %</label>
-      <input type="number" step="0.1" name="trailing_target" value="{{ settings.trailing_target or 10.0 }}" class="w-full border rounded px-3 py-2" />
-    </div>
-    <div class="md:col-span-2">
       <button class="bg-slate-900 text-white px-4 py-2 rounded">Save</button>
     </div>
   </form>

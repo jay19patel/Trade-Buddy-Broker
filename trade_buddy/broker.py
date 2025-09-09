@@ -482,18 +482,25 @@ class TradeBuddy:
                 pass
             raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
-    async def exit_position(self, account: Account, position_id: str, exit_price: float) -> TBResponse:
+    async def exit_position(self, account: Account, position_id: str, exit_price: float, close_quantity: float | None = None) -> TBResponse:
         try:
-            pos = await self._get_position_service().exit_position(account, position_id, exit_price)
-            
-            # Notify observers about position closed
+            if close_quantity is not None and close_quantity > 0:
+                pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
+            else:
+                pos = await self._get_position_service().exit_position(account, position_id, exit_price)
+
+            # Notify observers about position closed/partial
             notification_service = self._get_notification_service()
-            await notification_service.notify("position_closed", {
+            event_name = "position_closed" if getattr(pos, "status", None) == "CLOSED" else "position_trailed"
+            payload = {
                 "account_id": account.account_id,
                 "position": pos
-            })
-            
-            return TBResponse(message="Position exited", data={"position": pos.model_dump()})
+            }
+            if close_quantity is not None and close_quantity > 0:
+                payload.update({"close_quantity": close_quantity, "exit_price": exit_price})
+            await notification_service.notify(event_name, payload)
+
+            return TBResponse(message="Position exited" if event_name == "position_closed" else "Partial exit applied", data={"position": pos.model_dump()})
         except Exception as e:
             # Notify observers about error
             try:
@@ -618,39 +625,7 @@ class TradeBuddy:
                 pass
             raise TradeBuddyException(f"Update leverage failed: {str(e)}")
 
-    async def update_account_settings(
-        self,
-        account: Account,
-        default_leverage: float | None = None,
-        trailing_stoploss: float | None = None,
-        trailing_target: float | None = None
-    ) -> TBResponse:
-        """Update account settings like leverage and trailing configuration"""
-        try:
-            from trade_buddy.repositories import AccountRepository
-            repo = AccountRepository()
-            if default_leverage is not None:
-                if default_leverage <= 0:
-                    raise ValidationError("Leverage must be > 0")
-                account.default_leverage = default_leverage
-            if trailing_stoploss is not None:
-                account.trailing_stoploss = trailing_stoploss
-            if trailing_target is not None:
-                account.trailing_target = trailing_target
-            await repo.update(account)
-
-            # Build response payload
-            payload = account.model_dump_safe()
-            payload.update({
-                "total_margin": getattr(account, "total_margin", 0.0),
-                "utilized_margin": getattr(account, "utilized_margin", 0.0),
-                "available_margin": getattr(account, "available_margin", 0.0),
-                "margin_percentage": getattr(account, "margin_percentage", 0.0),
-                "default_leverage": getattr(account, "default_leverage", 1.0),
-            })
-            return TBResponse(message="Settings updated", data={"account": payload})
-        except Exception as e:
-            raise TradeBuddyException(f"Update settings failed: {str(e)}")
+    
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
@@ -705,11 +680,6 @@ class TradeBuddy:
         """Get notifications by type for account"""
         notification_service = self._get_notification_service()
         return await notification_service.get_notifications_by_type(account.account_id, notification_type, limit)
-    
-    async def mark_notification_sent(self, notification_id: str) -> TBResponse:
-        """Mark notification as sent"""
-        notification_service = self._get_notification_service()
-        return await notification_service.mark_notification_sent(notification_id)
     
     async def delete_notification(self, notification_id: str) -> TBResponse:
         """Delete notification"""

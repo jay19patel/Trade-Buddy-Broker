@@ -81,22 +81,48 @@ class PositionService:
             raise ValueError("Position not found")
         if position.status != PositionStatus.OPEN.value:
             return position
+        # Compute new totals
+        original_quantity = position.quantity
         if position.original_quantity == 0:
-            position.original_quantity = position.quantity
-        old_investment = position.invested_amount
+            position.original_quantity = original_quantity
+        old_investment = position.invested_amount or (position.avg_price * original_quantity)
         add_investment = additional_quantity * new_price
         total_investment = old_investment + add_investment
-        total_quantity = position.quantity + additional_quantity
-        position.average_entry_price = total_investment / total_quantity if total_quantity>0 else position.avg_price
-        position.quantity = total_quantity
-        position.total_quantity = total_quantity
-        position.invested_amount = total_investment
-        position.remaining_quantity = total_quantity
-        position.pyramid_count += 1
-        if position.leverage>0:
-            position.margin_used = total_investment / position.leverage
-        # persist
-        await self.repo.update_levels(position_id, position.stoploss, position.target)
+        total_quantity = original_quantity + additional_quantity
+        new_average_entry = total_investment / total_quantity if total_quantity > 0 else position.avg_price
+
+        # Update account margin usage and balance using the SAME leverage as the position
+        position_leverage = position.leverage if position.leverage and position.leverage > 0 else 1.0
+        additional_margin = add_investment / position_leverage
+        # Deduct margin from account available and increase utilized/total
+        try:
+            from trade_buddy.repositories.account_repository import AccountRepository
+            acc_repo = AccountRepository()
+            account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + additional_margin
+            account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
+            account.available_margin = max((getattr(account, "available_margin", 0.0) or 0.0) - additional_margin, 0.0)
+            # Deduct ONLY the margin used from balance when pyramiding
+            account.balance = max((getattr(account, "balance", 0.0) or 0.0) - additional_margin, 0.0)
+            await acc_repo.update(account)
+        except Exception:
+            # Keep pyramiding even if balance update fails, but ideally this should be transactional
+            pass
+
+        # Persist position changes
+        # Compute new margin used for position precisely: old + additional_margin
+        new_position_margin_used = (getattr(position, "margin_used", 0.0) or 0.0) + additional_margin
+
+        position_values = {
+            "quantity": total_quantity,
+            "total_quantity": total_quantity,
+            "invested_amount": total_investment,
+            "remaining_quantity": total_quantity,
+            "pyramid_count": (position.pyramid_count or 0) + 1,
+            "average_entry_price": new_average_entry,
+            "avg_price": new_average_entry,
+            "margin_used": new_position_margin_used,
+        }
+        await self.repo.update_pyramiding(position_id, position_values)
         updated = await self.repo.get_by_id(position_id)
         return updated
 
@@ -106,16 +132,57 @@ class PositionService:
             raise ValueError("Position not found")
         if close_quantity >= position.quantity:
             return await self.exit_position(account, position_id, exit_price)
-        pnl_per_unit = (exit_price - (position.average_entry_price or position.avg_price)) if position.side=='BUY' else ((position.average_entry_price or position.avg_price) - exit_price)
-        realized = (position.realized_pnl or 0.0) + pnl_per_unit*close_quantity
+
+        # Calculate realized PnL for the closing leg
+        entry_avg = position.average_entry_price or position.avg_price
+        pnl_per_unit = (exit_price - entry_avg) if position.side == 'BUY' else (entry_avg - exit_price)
+        close_realized = pnl_per_unit * close_quantity
+        realized_total = round((position.realized_pnl or 0.0) + close_realized, 2)
+
+        # Update average exit price weighted by exited quantity
+        prev_exit_qty = (position.total_quantity - position.remaining_quantity) if (position.total_quantity and position.remaining_quantity is not None) else 0.0
+        if prev_exit_qty < 0:
+            prev_exit_qty = 0.0
+        total_exit_qty = prev_exit_qty + close_quantity
+        if total_exit_qty > 0:
+            weighted_exit_sum = (position.average_exit_price or 0.0) * prev_exit_qty + (exit_price * close_quantity)
+            new_avg_exit = weighted_exit_sum / total_exit_qty
+        else:
+            new_avg_exit = position.average_exit_price or 0.0
+
+        # Margin release proportional to quantity closed (using position leverage)
+        pos_leverage = position.leverage if position.leverage and position.leverage > 0 else 1.0
+        position_margin_used = (position.margin_used or 0.0)
+        released_margin = position_margin_used * (close_quantity / position.quantity)
+
         remaining = position.quantity - close_quantity
-        # simplistic update via update_levels then re-read; for a full impl we'd add dedicated update calls
-        await self.repo.update_levels(position_id, position.stoploss, position.target)
+
+        # Persist position updates atomically
+        await self.repo.update_partial(position_id, {
+            "quantity": remaining,
+            "remaining_quantity": remaining,
+            "realized_pnl": realized_total,
+            "average_exit_price": new_avg_exit,
+            "trailing_count": (position.trailing_count or 0) + 1,
+            "margin_used": max(position_margin_used - released_margin, 0.0),
+        })
+
+        # Update account margins accordingly
+        try:
+            from trade_buddy.repositories.account_repository import AccountRepository
+            acc_repo = AccountRepository()
+            account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - released_margin, 0.0)
+            account.available_margin = (getattr(account, "available_margin", 0.0) or 0.0) + released_margin
+            # In paper trading, return released margin to balance as well
+            account.balance = (getattr(account, "balance", 0.0) or 0.0) + released_margin
+            await acc_repo.update(account)
+        except Exception:
+            pass
+
         updated = await self.repo.get_by_id(position_id)
-        updated.realized_pnl = round(realized, 2)
-        updated.quantity = remaining
-        updated.remaining_quantity = remaining
-        updated.trailing_count = (updated.trailing_count or 0) + 1
+        # If remaining becomes zero due to rounding, close the position fully at average exit
+        if updated.quantity <= 0:
+            return await self.exit_position(account, position_id, exit_price)
         return updated
 
 

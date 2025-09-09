@@ -87,4 +87,30 @@ class PositionRepository:
             await session.commit()
             return True
 
+    async def update_pyramiding(self, position_id: str, values: dict) -> bool:
+        """Persist pyramiding-related field updates for a position"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = (
+                update(Position)
+                .where(Position.position_id == position_id)
+                .values(**values)
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+
+    async def update_partial(self, position_id: str, values: dict) -> bool:
+        """Persist partial-exit related updates for a position"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            stmt = (
+                update(Position)
+                .where(Position.position_id == position_id)
+                .values(**values)
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+
 
