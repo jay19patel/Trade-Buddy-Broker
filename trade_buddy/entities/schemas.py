@@ -14,7 +14,6 @@ class RegistrationSchema(BaseModel):
     max_trad_per_day: int = Field(default=5, ge=1, le=100)
     base_stoploss: float = Field(default=5.0, ge=0.1, le=50.0)
     base_target: float = Field(default=10.0, ge=0.1, le=100.0)
-    trailing_status: bool = Field(default=True)
     trailing_stoploss: float = Field(default=10.0, ge=0.1, le=50.0)
     trailing_target: float = Field(default=10.0, ge=0.1, le=100.0)
     description: str = Field(default="Trade Buddy User")

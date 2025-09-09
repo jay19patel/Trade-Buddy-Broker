@@ -551,6 +551,7 @@ class TradeBuddy:
 
     async def trailing(self, account: Account, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
+            # Always update levels when provided; trailing feature flag removed
             if stoploss is not None or target is not None:
                 await self._get_position_service().update_levels(account, position_id, stoploss, target)
             pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
@@ -621,7 +622,6 @@ class TradeBuddy:
         self,
         account: Account,
         default_leverage: float | None = None,
-        trailing_status: bool | None = None,
         trailing_stoploss: float | None = None,
         trailing_target: float | None = None
     ) -> TBResponse:
@@ -633,8 +633,6 @@ class TradeBuddy:
                 if default_leverage <= 0:
                     raise ValidationError("Leverage must be > 0")
                 account.default_leverage = default_leverage
-            if trailing_status is not None:
-                account.trailing_status = trailing_status
             if trailing_stoploss is not None:
                 account.trailing_stoploss = trailing_stoploss
             if trailing_target is not None:

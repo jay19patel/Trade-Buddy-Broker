@@ -127,7 +127,6 @@ def create_app() -> Flask:
                 "max_trad_per_day": int(form.get("max_trad_per_day", 5)),
                 "base_stoploss": float(form.get("base_stoploss", 5.0)),
                 "base_target": float(form.get("base_target", 10.0)),
-                "trailing_status": bool(form.get("trailing_status")),
                 "trailing_stoploss": float(form.get("trailing_stoploss", 10.0)),
                 "trailing_target": float(form.get("trailing_target", 10.0)),
                 "description": form.get("description", "Trade Buddy User").strip(),
@@ -135,12 +134,37 @@ def create_app() -> Flask:
             try:
                 resp = run_async(broker.registration(data))
                 if resp and resp.data:
-                    flash("Registration successful. Please verify email if required.", "success")
-                    return redirect(url_for("login"))
+                    session["registration_result"] = resp.data
+                    return redirect(url_for("register_success"))
                 flash(resp.message if resp else "Registration failed", "error")
             except Exception as e:
                 flash(str(e), "error")
         return render_template("register.html")
+
+    @app.get("/register/success")
+    def register_success():
+        data = session.get("registration_result") or {}
+        if not data:
+            return redirect(url_for("register"))
+        user = data.get("user") or {}
+        token = data.get("verification_token")
+        return render_template("register_success.html", user=user, token=token)
+
+    @app.post("/verify-email")
+    def verify_email():
+        token = request.form.get("token", "").strip()
+        if not token:
+            flash("Token is required", "error")
+            return redirect(request.referrer or url_for("register"))
+        try:
+            resp = run_async(broker.verify_email(token))
+            if resp and resp.data:
+                flash("Email verified successfully", "success")
+            else:
+                flash(resp.message if resp else "Verification failed", "error")
+        except Exception as e:
+            flash(str(e), "error")
+        return redirect(url_for("login"))
 
     @app.get("/logout")
     def logout():
@@ -287,13 +311,11 @@ def create_app() -> Flask:
         if request.method == "POST":
             try:
                 lev = request.form.get("default_leverage")
-                trailing_status = True if request.form.get("trailing_status") == 'on' else False
                 tsl = request.form.get("trailing_stoploss")
                 tgt = request.form.get("trailing_target")
                 resp = run_async(broker.update_account_settings(
                     g.account_obj,
                     default_leverage=float(lev) if lev else None,
-                    trailing_status=trailing_status,
                     trailing_stoploss=float(tsl) if tsl else None,
                     trailing_target=float(tgt) if tgt else None
                 ))
@@ -307,7 +329,6 @@ def create_app() -> Flask:
         # current settings
         settings = {
             "default_leverage": getattr(g.account_obj, "default_leverage", 1.0),
-            "trailing_status": getattr(g.account_obj, "trailing_status", True),
             "trailing_stoploss": getattr(g.account_obj, "trailing_stoploss", 10.0),
             "trailing_target": getattr(g.account_obj, "trailing_target", 10.0),
         }

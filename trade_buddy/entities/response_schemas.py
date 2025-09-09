@@ -20,7 +20,6 @@ class UserData(BaseModel):
     max_trad_per_day: int
     base_stoploss: float
     base_target: float
-    trailing_status: bool
     trailing_stoploss: float
     trailing_target: float
     created_datetime: datetime
@@ -72,7 +71,6 @@ class AccountData(BaseModel):
     max_trad_per_day: int
     base_stoploss: float
     base_target: float
-    trailing_status: bool
     trailing_stoploss: float
     trailing_target: float
     created_datetime: datetime

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Registration Successful - Trade Buddy{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+  <h1 class="text-xl font-semibold mb-4">Registration Successful</h1>
+  <p class="text-sm text-slate-600 mb-4">Please copy the verification token and verify your email. You can login after verification.</p>
+
+  <div class="mb-4">
+    <h2 class="font-semibold mb-2">Your Details</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+      <div><span class="text-slate-500">Account ID:</span> {{ user.account_id }}</div>
+      <div><span class="text-slate-500">Full Name:</span> {{ user.full_name }}</div>
+      <div><span class="text-slate-500">Email:</span> {{ user.email_id }}</div>
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <h2 class="font-semibold mb-2">Verification Token</h2>
+    <div class="flex items-center gap-2">
+      <input id="tokenField" class="flex-1 border rounded px-3 py-2" readonly value="{{ token }}" />
+      <button class="px-3 py-2 border rounded" onclick="navigator.clipboard.writeText(document.getElementById('tokenField').value)">Copy</button>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <a class="px-4 py-2 bg-slate-900 text-white rounded" href="{{ url_for('login') }}">Go to Login</a>
+    <button class="px-4 py-2 bg-blue-600 text-white rounded" onclick="document.getElementById('verifyModal').classList.remove('hidden')">Verify Email</button>
+  </div>
+</div>
+
+<!-- Verify Modal -->
+<div id="verifyModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold">Verify Email</h3>
+      <button onclick="document.getElementById('verifyModal').classList.add('hidden')">✕</button>
+    </div>
+    <form method="post" action="{{ url_for('verify_email') }}" class="space-y-3">
+      <div>
+        <label class="block text-sm mb-1">Token</label>
+        <input name="token" class="w-full border rounded px-3 py-2" value="{{ token }}" />
+      </div>
+      <div class="flex items-center justify-end gap-2">
+        <button type="button" class="px-3 py-2 border rounded" onclick="document.getElementById('verifyModal').classList.add('hidden')">Cancel</button>
+        <button class="px-3 py-2 bg-blue-600 text-white rounded">Verify</button>
+      </div>
+    </form>
+  </div>
+  </div>
+{% endblock %}
+

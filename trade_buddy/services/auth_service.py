@@ -36,7 +36,6 @@ class AuthService:
                 max_trad_per_day=data.max_trad_per_day,
                 base_stoploss=data.base_stoploss,
                 base_target=data.base_target,
-                trailing_status=data.trailing_status,
                 trailing_stoploss=data.trailing_stoploss,
                 trailing_target=data.trailing_target,
                 description=data.description
