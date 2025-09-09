@@ -25,6 +25,33 @@ class PositionService:
         stoploss: Optional[float] = None,
         target: Optional[float] = None,
     ) -> Position:
+        leverage = getattr(account, "default_leverage", 1.0) or 1.0
+        if leverage <= 0:
+            leverage = 1.0
+        
+        invested_amount = quantity * price
+        margin_required = invested_amount / leverage
+        
+        # Check available margin
+        available_margin = getattr(account, "available_margin", account.balance)
+        if available_margin < margin_required:
+            raise ValueError(f"Insufficient funds. Required margin: ₹{margin_required:.2f}, Available: ₹{available_margin:.2f}")
+        
+        # Update account margins first
+        try:
+            from trade_buddy.repositories.account_repository import AccountRepository
+            acc_repo = AccountRepository()
+            
+            # Update margin calculations
+            account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + margin_required
+            account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
+            account.available_margin = max(account.balance - account.utilized_margin, 0.0)
+            account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
+            
+            await acc_repo.update(account)
+        except Exception as e:
+            raise ValueError(f"Failed to update account margins: {str(e)}")
+        
         position = Position(
             position_id=self.security.generate_unique_id("POS"),
             account_id=account.account_id,
@@ -34,13 +61,15 @@ class PositionService:
             avg_price=price,
             status=PositionStatus.OPEN.value,
             position_type=("LONG" if side.upper()=="BUY" else "SHORT"),
-            invested_amount=quantity*price,
-            leverage=getattr(account, "default_leverage", 1.0) or 1.0,
-            margin_used=(quantity*price)/((getattr(account, "default_leverage", 1.0) or 1.0) if (getattr(account, "default_leverage", 1.0) or 1.0)>0 else 1.0),
+            invested_amount=invested_amount,
+            leverage=leverage,
+            margin_used=margin_required,
             stoploss=stoploss,
             target=target,
             total_quantity=quantity,
             remaining_quantity=quantity,
+            original_quantity=quantity,
+            average_entry_price=price,
         )
         return await self.repo.create(position)
 
@@ -62,9 +91,31 @@ class PositionService:
         position = await self.repo.get_by_id(position_id)
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
+        if position.status != PositionStatus.OPEN.value:
+            raise ValueError("Position is already closed")
+        
+        # Calculate PnL
+        entry_price = position.average_entry_price or position.avg_price
         multiplier = 1 if position.side == 'BUY' else -1
-        pnl = round((exit_price - position.avg_price) * position.quantity * multiplier, 2)
+        pnl = round((exit_price - entry_price) * position.quantity * multiplier, 2)
         pnl_pct = round((pnl / position.invested_amount) * 100, 4) if position.invested_amount else 0.0
+        
+        # Release all margin from this position
+        position_margin = position.margin_used or 0.0
+        
+        # Update account balance with PnL and release margin
+        try:
+            from trade_buddy.repositories.account_repository import AccountRepository
+            acc_repo = AccountRepository()
+            # Add PnL to balance and release margin
+            account.balance = (getattr(account, "balance", 0.0) or 0.0) + pnl
+            account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - position_margin, 0.0)
+            account.available_margin = max(account.balance - account.utilized_margin, 0.0)
+            account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
+            await acc_repo.update(account)
+        except Exception:
+            pass
+        
         await self.repo.close(position_id, exit_price, pnl, pnl_pct)
         closed = await self.repo.get_by_id(position_id)
         return closed
@@ -80,36 +131,40 @@ class PositionService:
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
         if position.status != PositionStatus.OPEN.value:
-            return position
+            raise ValueError("Cannot add to closed position")
+        
+        # Calculate additional investment and margin required
+        position_leverage = position.leverage if position.leverage and position.leverage > 0 else 1.0
+        add_investment = additional_quantity * new_price
+        additional_margin = add_investment / position_leverage
+        
+        # Check available margin
+        available_margin = getattr(account, "available_margin", 0.0)
+        if available_margin < additional_margin:
+            raise ValueError(f"Insufficient funds for pyramiding. Required margin: ₹{additional_margin:.2f}, Available: ₹{available_margin:.2f}")
+        
         # Compute new totals
         original_quantity = position.quantity
         if position.original_quantity == 0:
             position.original_quantity = original_quantity
         old_investment = position.invested_amount or (position.avg_price * original_quantity)
-        add_investment = additional_quantity * new_price
         total_investment = old_investment + add_investment
         total_quantity = original_quantity + additional_quantity
         new_average_entry = total_investment / total_quantity if total_quantity > 0 else position.avg_price
 
-        # Update account margin usage and balance using the SAME leverage as the position
-        position_leverage = position.leverage if position.leverage and position.leverage > 0 else 1.0
-        additional_margin = add_investment / position_leverage
-        # Deduct margin from account available and increase utilized/total
+        # Update account margin usage
         try:
             from trade_buddy.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + additional_margin
             account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
-            account.available_margin = max((getattr(account, "available_margin", 0.0) or 0.0) - additional_margin, 0.0)
-            # Deduct ONLY the margin used from balance when pyramiding
-            account.balance = max((getattr(account, "balance", 0.0) or 0.0) - additional_margin, 0.0)
+            account.available_margin = max(account.balance - account.utilized_margin, 0.0)
+            account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             await acc_repo.update(account)
-        except Exception:
-            # Keep pyramiding even if balance update fails, but ideally this should be transactional
-            pass
+        except Exception as e:
+            raise ValueError(f"Failed to update account margins: {str(e)}")
 
         # Persist position changes
-        # Compute new margin used for position precisely: old + additional_margin
         new_position_margin_used = (getattr(position, "margin_used", 0.0) or 0.0) + additional_margin
 
         position_values = {
@@ -172,9 +227,8 @@ class PositionService:
             from trade_buddy.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - released_margin, 0.0)
-            account.available_margin = (getattr(account, "available_margin", 0.0) or 0.0) + released_margin
-            # In paper trading, return released margin to balance as well
-            account.balance = (getattr(account, "balance", 0.0) or 0.0) + released_margin
+            account.available_margin = max(account.balance - account.utilized_margin, 0.0)
+            account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             await acc_repo.update(account)
         except Exception:
             pass

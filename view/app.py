@@ -27,6 +27,16 @@ def create_app() -> Flask:
 
     def run_async(coro):
         return asyncio.run(coro)
+    
+    def _calculate_growth_percentage(acc, session):
+        try:
+            balance = getattr(acc, "balance", 0.0)
+            base_balance = float(session.get("base_balance") or 0.0)
+            if base_balance > 0:
+                return ((balance - base_balance) / base_balance) * 100.0
+            return 0.0
+        except:
+            return 0.0
 
     @app.before_request
     def _sync_broker_session():
@@ -114,7 +124,7 @@ def create_app() -> Flask:
                 "utilized_margin": getattr(acc, "utilized_margin", 0.0),
                 "margin_percentage": getattr(acc, "margin_percentage", 0.0),
                 "default_leverage": getattr(acc, "default_leverage", 1.0),
-                "growth_percentage": ( (getattr(acc, "balance", 0.0) - float(session.get("base_balance") or 0.0)) / float(session.get("base_balance") or 1.0) * 100.0 ) if (session.get("base_balance") not in (None, 0)) else 0.0,
+                "growth_percentage": _calculate_growth_percentage(acc, session),
             }
         return render_template("home.html", summary=summary)
 
@@ -314,9 +324,6 @@ def create_app() -> Flask:
                 new_price = float(request.form.get("new_price", 0) or 0)
                 resp = run_async(broker.pyramid(g.account_obj, pid, add_qty, new_price))
                 flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
-            elif action == "delete":
-                # Soft-delete by exiting at avg price if supported; else just flash
-                flash("Delete not supported; close the position instead.", "error")
         except Exception as e:
             flash(str(e), "error")
         return redirect(url_for("positions"))

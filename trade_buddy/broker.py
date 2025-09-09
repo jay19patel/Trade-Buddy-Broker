@@ -10,8 +10,7 @@ from trade_buddy.entities.schemas import (
     RegistrationSchema, LoginSchema, TransactionSchema
 )
 from trade_buddy.entities.response_schemas import (
-    UserData, LoginData, TransactionData, AccountData,
-    SymbolData, PriceData
+    UserData, LoginData, AccountData, SymbolData, PriceData
 )
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
 from trade_buddy.core.response import TBResponse
@@ -23,7 +22,6 @@ from trade_buddy.services.price_service import PriceService
 from trade_buddy.services.position_service import PositionService
 from trade_buddy.services.notification_service import NotificationService
 from trade_buddy.patterns.observer import get_caller_info
-from typing import Optional, List, Dict, Any
 
 
 class TradeBuddy:
@@ -52,11 +50,9 @@ class TradeBuddy:
     
     def __init__(self):
         """Initialize Trade Buddy broker"""
-        # Initialize basic properties first
         self._current_session_id: Optional[str] = None
         self._initialized = False
         self._db_initialized = False
-        self.test = "Test By jay"
         
         # Initialize services with lazy loading
         self._auth_service = None
@@ -97,12 +93,9 @@ class TradeBuddy:
             self._session_manager = DatabaseSessionManager()
         return self._session_manager
     
-    # Quick access properties for basic usage
-    # Backward-compatibility shims removed
-        
     @property  
     def session_manager(self):
-        """Property access to session manager (may be slow on first access)"""
+        """Property access to session manager"""
         return self._get_session_manager()
     
     async def _initialize_database(self):
@@ -126,14 +119,20 @@ class TradeBuddy:
             from trade_buddy.utils.security import SecurityManager
             security = SecurityManager()
             
+            demo_balance = 100000.0
             demo_account = Account(
                 account_id="DEMO01",
                 full_name="Demo User",
                 email_id="demo@tradebuddy.com",
                 password=security.generate_hash_password("demo123"),
-                balance=100000.0,
+                balance=demo_balance,
                 email_verified=True,
-                description="Demo account for testing"
+                description="Demo account for testing",
+                default_leverage=1.0,
+                total_margin=0.0,
+                utilized_margin=0.0,
+                available_margin=demo_balance,
+                margin_percentage=0.0
             )
             
             from trade_buddy.repositories.account_repository import AccountRepository
@@ -324,14 +323,29 @@ class TradeBuddy:
             raise TradeBuddyException(f"Transaction failed: {str(e)}")
     
     async def get_account_details(self, account: Account) -> TBResponse:
-        """Get current account details"""
-        # Ensure margin stats are present in the response schema
+        """Get current account details with updated margin calculations"""
+        # Refresh account from database to get latest margin values
+        try:
+            from trade_buddy.repositories.account_repository import AccountRepository
+            acc_repo = AccountRepository()
+            fresh_account = await acc_repo.get_by_id(account.account_id)
+            if fresh_account:
+                account = fresh_account
+        except Exception:
+            pass
+        
+        # Ensure margin stats are properly calculated
+        utilized_margin = getattr(account, "utilized_margin", 0.0)
+        balance = getattr(account, "balance", 0.0)
+        available_margin = max(balance - utilized_margin, 0.0)
+        margin_percentage = (utilized_margin / balance * 100) if balance > 0 else 0.0
+        
         account_payload = account.model_dump_safe()
         account_payload.update({
-            "total_margin": getattr(account, "total_margin", 0.0),
-            "utilized_margin": getattr(account, "utilized_margin", 0.0),
-            "available_margin": getattr(account, "available_margin", 0.0),
-            "margin_percentage": getattr(account, "margin_percentage", 0.0),
+            "total_margin": max(getattr(account, "total_margin", 0.0), utilized_margin),
+            "utilized_margin": utilized_margin,
+            "available_margin": available_margin,
+            "margin_percentage": margin_percentage,
             "default_leverage": getattr(account, "default_leverage", 1.0),
         })
         account_data = AccountData(**account_payload)
@@ -430,7 +444,10 @@ class TradeBuddy:
                 "position": pos
             })
             
-            return TBResponse(message="Position opened", data={"position": pos.model_dump()})
+            return TBResponse(message="Position opened successfully", data={"position": pos.model_dump()})
+        except ValueError as e:
+            # Return user-friendly error for insufficient funds
+            return TBResponse(message=str(e), data=None)
         except Exception as e:
             # Notify observers about error
             try:
@@ -447,40 +464,6 @@ class TradeBuddy:
                 pass
             raise TradeBuddyException(f"Open position failed: {str(e)}")
 
-    async def update_position_levels(self, account: Account, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
-        try:
-            pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
-            
-            # Notify observers about position updated
-            changes = {}
-            if stoploss is not None:
-                changes["stoploss"] = stoploss
-            if target is not None:
-                changes["target"] = target
-                
-            notification_service = self._get_notification_service()
-            await notification_service.notify("position_updated", {
-                "account_id": account.account_id,
-                "position": pos,
-                "changes": changes
-            })
-            
-            return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
-        except Exception as e:
-            # Notify observers about error
-            try:
-                notification_service = self._get_notification_service()
-                caller_info = get_caller_info()
-                await notification_service.notify("error_occurred", {
-                    "account_id": account.account_id,
-                    "error": e,
-                    "function_name": caller_info["function_name"],
-                    "class_name": caller_info["class_name"],
-                    "file_name": caller_info["file_name"]
-                })
-            except:
-                pass
-            raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
     async def exit_position(self, account: Account, position_id: str, exit_price: float, close_quantity: float | None = None) -> TBResponse:
         try:
@@ -500,7 +483,10 @@ class TradeBuddy:
                 payload.update({"close_quantity": close_quantity, "exit_price": exit_price})
             await notification_service.notify(event_name, payload)
 
-            return TBResponse(message="Position exited" if event_name == "position_closed" else "Partial exit applied", data={"position": pos.model_dump()})
+            return TBResponse(message="Position exited successfully" if event_name == "position_closed" else "Partial exit applied successfully", data={"position": pos.model_dump()})
+        except ValueError as e:
+            # Return user-friendly error
+            return TBResponse(message=str(e), data=None)
         except Exception as e:
             # Notify observers about error
             try:
@@ -539,7 +525,10 @@ class TradeBuddy:
                 "new_price": new_price
             })
             
-            return TBResponse(message="Pyramiding applied", data={"position": pos.model_dump()})
+            return TBResponse(message="Pyramiding applied successfully", data={"position": pos.model_dump()})
+        except ValueError as e:
+            # Return user-friendly error for insufficient funds
+            return TBResponse(message=str(e), data=None)
         except Exception as e:
             # Notify observers about error
             try:
@@ -588,6 +577,42 @@ class TradeBuddy:
             except:
                 pass
             raise TradeBuddyException(f"Trailing failed: {str(e)}")
+
+    async def update_position_levels(self, account: Account, position_id: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
+        """Update position stop loss and target levels"""
+        try:
+            pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
+            
+            # Notify observers about position updated
+            changes = {}
+            if stoploss is not None:
+                changes["stoploss"] = stoploss
+            if target is not None:
+                changes["target"] = target
+                
+            notification_service = self._get_notification_service()
+            await notification_service.notify("position_updated", {
+                "account_id": account.account_id,
+                "position": pos,
+                "changes": changes
+            })
+            
+            return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
+        except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
+            raise TradeBuddyException(f"Update levels failed: {str(e)}")
 
     async def update_leverage(self, account: Account, leverage: float) -> TBResponse:
         try:
@@ -650,25 +675,10 @@ class TradeBuddy:
             data={"logged_out": True}
         )
     
-    # Additional utility methods
     def is_authenticated(self) -> bool:
         """Check if user is currently authenticated"""
-        if not self._current_session_id:
-            return False
-        
-        # Use asyncio to handle the async session manager
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                return False  # Cannot validate in running loop context
-            return loop.run_until_complete(self._get_session_manager().validate_session(self._current_session_id))
-        except:
-            return False
+        return bool(self._current_session_id)
     
-    async def get_current_balance(self, account: Account) -> float:
-        """Get current account balance"""
-        return account.balance
     
     # Notification APIs
     async def get_notifications(self, account: Account, limit: int = 50) -> TBResponse:
@@ -749,12 +759,9 @@ class TradeBuddy:
             raise TradeBuddyException(f"Failed to clear database: {str(e)}")
     
     async def clear_all_data(self):
-        """Clear all data (for testing purposes only) - Legacy method"""
-        # No repository factory; nothing to clear in memory here
+        """Clear all data (for testing purposes only)"""
         await self._get_session_manager().clear_all_sessions()
         self._current_session_id = None
-
-    # Background helpers removed
     
     async def get_session_info(self) -> Optional[Dict[str, Any]]:
         """Get current session information"""
