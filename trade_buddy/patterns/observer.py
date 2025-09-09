@@ -174,12 +174,12 @@ class NotificationObserver(Observer):
                 account_id=account_id,
                 notification_type="POSITION",
                 title="Position Pyramided",
-                message=f"Added {additional_quantity} shares to position at ₹{new_price}. Total quantity: {position.total_quantity}",
+                message=f"Added {additional_quantity} shares to position at ₹{new_price}. Total quantity: {position.quantity}",
                 data={
                     "position_id": position.position_id,
                     "additional_quantity": additional_quantity,
                     "new_price": new_price,
-                    "total_quantity": position.total_quantity
+                    "total_quantity": position.quantity
                 }
             )
     
@@ -195,12 +195,12 @@ class NotificationObserver(Observer):
                 account_id=account_id,
                 notification_type="POSITION",
                 title="Position Trailed",
-                message=f"Partially closed {close_quantity} shares at ₹{exit_price}. Remaining: {position.remaining_quantity}",
+                message=f"Partially closed {close_quantity} shares at ₹{exit_price}. Remaining: {position.quantity}",
                 data={
                     "position_id": position.position_id,
                     "close_quantity": close_quantity,
                     "exit_price": exit_price,
-                    "remaining_quantity": position.remaining_quantity
+                    "remaining_quantity": position.quantity
                 }
             )
     

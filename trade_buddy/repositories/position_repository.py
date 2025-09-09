@@ -69,7 +69,7 @@ class PositionRepository:
     async def close(self, position_id: str, exit_price: float, pnl: float, pnl_percentage: float):
         db = get_database_manager()
         async for session in db.get_session():
-            from datetime import datetime
+            from datetime import datetime, timezone
             stmt = (
                 update(Position)
                 .where(Position.position_id == position_id)
@@ -80,7 +80,7 @@ class PositionRepository:
                     pnl_percentage=pnl_percentage,
                     realized_pnl=pnl,
                     unrealized_pnl=0.0,
-                    closed_at=datetime.now(),
+                    closed_at=datetime.now(timezone.utc),
                 )
             )
             await session.execute(stmt)

@@ -125,13 +125,11 @@ class Position(SQLModel, table=True):
     
     # Advanced features - Pyramiding
     original_quantity: float = Field(default=0.0)
-    total_quantity: float = Field(default=0.0)
     average_entry_price: float = Field(default=0.0)
     pyramid_count: int = Field(default=0)
     
     # Advanced features - Trailing
     trailing_count: int = Field(default=0)
-    remaining_quantity: float = Field(default=0.0)
     average_exit_price: float = Field(default=0.0)
 
 class Notification(SQLModel, table=True):

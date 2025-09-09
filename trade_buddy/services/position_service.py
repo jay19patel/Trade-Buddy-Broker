@@ -2,7 +2,6 @@
 Async DB-backed Position service
 """
 
-from datetime import datetime
 from typing import List, Optional
 
 from trade_buddy.entities.models import Account, Position, PositionStatus
@@ -66,8 +65,6 @@ class PositionService:
             margin_used=margin_required,
             stoploss=stoploss,
             target=target,
-            total_quantity=quantity,
-            remaining_quantity=quantity,
             original_quantity=quantity,
             average_entry_price=price,
         )
@@ -97,7 +94,10 @@ class PositionService:
         # Calculate PnL
         entry_price = position.average_entry_price or position.avg_price
         multiplier = 1 if position.side == 'BUY' else -1
-        pnl = round((exit_price - entry_price) * position.quantity * multiplier, 2)
+        remaining_pnl = round((exit_price - entry_price) * position.quantity * multiplier, 2)
+        # Add any existing realized PnL from partial exits
+        total_pnl = remaining_pnl + (position.realized_pnl or 0.0)
+        pnl = round(total_pnl, 2)
         pnl_pct = round((pnl / position.invested_amount) * 100, 4) if position.invested_amount else 0.0
         
         # Release all margin from this position
@@ -144,13 +144,14 @@ class PositionService:
             raise ValueError(f"Insufficient funds for pyramiding. Required margin: ₹{additional_margin:.2f}, Available: ₹{available_margin:.2f}")
         
         # Compute new totals
-        original_quantity = position.quantity
-        if position.original_quantity == 0:
-            position.original_quantity = original_quantity
-        old_investment = position.invested_amount or (position.avg_price * original_quantity)
+        current_quantity = position.quantity
+        old_investment = position.invested_amount or (position.avg_price * current_quantity)
         total_investment = old_investment + add_investment
-        total_quantity = original_quantity + additional_quantity
-        new_average_entry = total_investment / total_quantity if total_quantity > 0 else position.avg_price
+        new_total_quantity = current_quantity + additional_quantity
+        new_average_entry = total_investment / new_total_quantity if new_total_quantity > 0 else position.avg_price
+        
+        # Update original_quantity to track total quantity ever held
+        new_original_quantity = position.original_quantity + additional_quantity
 
         # Update account margin usage
         try:
@@ -168,10 +169,9 @@ class PositionService:
         new_position_margin_used = (getattr(position, "margin_used", 0.0) or 0.0) + additional_margin
 
         position_values = {
-            "quantity": total_quantity,
-            "total_quantity": total_quantity,
+            "quantity": new_total_quantity,
+            "original_quantity": new_original_quantity,
             "invested_amount": total_investment,
-            "remaining_quantity": total_quantity,
             "pyramid_count": (position.pyramid_count or 0) + 1,
             "average_entry_price": new_average_entry,
             "avg_price": new_average_entry,
@@ -185,9 +185,11 @@ class PositionService:
         position = await self.repo.get_by_id(position_id)
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
-        if close_quantity >= position.quantity:
-            return await self.exit_position(account, position_id, exit_price)
-
+        
+        # Validation: Check if trying to close more quantity than available
+        if close_quantity > position.quantity:
+            raise ValueError(f"Cannot close {close_quantity} quantity. Only {position.quantity} quantity is available in position.")
+        
         # Calculate realized PnL for the closing leg
         entry_avg = position.average_entry_price or position.avg_price
         pnl_per_unit = (exit_price - entry_avg) if position.side == 'BUY' else (entry_avg - exit_price)
@@ -195,7 +197,8 @@ class PositionService:
         realized_total = round((position.realized_pnl or 0.0) + close_realized, 2)
 
         # Update average exit price weighted by exited quantity
-        prev_exit_qty = (position.total_quantity - position.remaining_quantity) if (position.total_quantity and position.remaining_quantity is not None) else 0.0
+        # Calculate how much was previously exited: original_quantity - current_quantity
+        prev_exit_qty = (position.original_quantity - position.quantity) if (position.original_quantity and position.quantity is not None) else 0.0
         if prev_exit_qty < 0:
             prev_exit_qty = 0.0
         total_exit_qty = prev_exit_qty + close_quantity
@@ -205,8 +208,7 @@ class PositionService:
         else:
             new_avg_exit = position.average_exit_price or 0.0
 
-        # Margin release proportional to quantity closed (using position leverage)
-        pos_leverage = position.leverage if position.leverage and position.leverage > 0 else 1.0
+        # Margin release proportional to quantity closed
         position_margin_used = (position.margin_used or 0.0)
         released_margin = position_margin_used * (close_quantity / position.quantity)
 
@@ -215,7 +217,6 @@ class PositionService:
         # Persist position updates atomically
         await self.repo.update_partial(position_id, {
             "quantity": remaining,
-            "remaining_quantity": remaining,
             "realized_pnl": realized_total,
             "average_exit_price": new_avg_exit,
             "trailing_count": (position.trailing_count or 0) + 1,
