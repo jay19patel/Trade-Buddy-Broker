@@ -616,6 +616,43 @@ class TradeBuddy:
             except:
                 pass
             raise TradeBuddyException(f"Update leverage failed: {str(e)}")
+
+    async def update_account_settings(
+        self,
+        account: Account,
+        default_leverage: float | None = None,
+        trailing_status: bool | None = None,
+        trailing_stoploss: float | None = None,
+        trailing_target: float | None = None
+    ) -> TBResponse:
+        """Update account settings like leverage and trailing configuration"""
+        try:
+            from trade_buddy.repositories import AccountRepository
+            repo = AccountRepository()
+            if default_leverage is not None:
+                if default_leverage <= 0:
+                    raise ValidationError("Leverage must be > 0")
+                account.default_leverage = default_leverage
+            if trailing_status is not None:
+                account.trailing_status = trailing_status
+            if trailing_stoploss is not None:
+                account.trailing_stoploss = trailing_stoploss
+            if trailing_target is not None:
+                account.trailing_target = trailing_target
+            await repo.update(account)
+
+            # Build response payload
+            payload = account.model_dump_safe()
+            payload.update({
+                "total_margin": getattr(account, "total_margin", 0.0),
+                "utilized_margin": getattr(account, "utilized_margin", 0.0),
+                "available_margin": getattr(account, "available_margin", 0.0),
+                "margin_percentage": getattr(account, "margin_percentage", 0.0),
+                "default_leverage": getattr(account, "default_leverage", 1.0),
+            })
+            return TBResponse(message="Settings updated", data={"account": payload})
+        except Exception as e:
+            raise TradeBuddyException(f"Update settings failed: {str(e)}")
     
     async def verify_email(self, token: str) -> TBResponse:
         """Verify email with token"""
@@ -682,25 +719,19 @@ class TradeBuddy:
         return await notification_service.delete_notification(notification_id)
     
     # New subscription-style APIs
-    def notification_subscribe(self, channels: List[str]) -> None:
-        notification_service = self._get_notification_service()
-        notification_service.subscribe_channels(channels)
-
-    def notification_unsubscribe(self, channels: List[str]) -> None:
-        notification_service = self._get_notification_service()
-        notification_service.unsubscribe_channels(channels)
-
+    # Simplified notifications API
     def notification_set_email(self, config: Dict[str, Any]) -> None:
         notification_service = self._get_notification_service()
         notification_service.set_email_config(config)
 
-    def notification_set_sms(self, config: Dict[str, Any]) -> None:
+    async def read_notification(self, notification_id: str) -> TBResponse:
+        """Mark notification as read (sent) in DB"""
         notification_service = self._get_notification_service()
-        notification_service.set_sms_config(config)
+        return await notification_service.mark_notification_sent(notification_id)
 
-    def notification_set_push(self, config: Dict[str, Any]) -> None:
+    async def get_notifications_paginated(self, account: Account, page: int = 1, page_size: int = 20) -> TBResponse:
         notification_service = self._get_notification_service()
-        notification_service.set_push_config(config)
+        return await notification_service.get_notifications_paginated(account.account_id, page, page_size)
     
     async def delete_account(self, account_id: str) -> TBResponse:
         """

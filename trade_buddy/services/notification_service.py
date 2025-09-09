@@ -13,7 +13,7 @@ class NotificationService(Subject):
         self.notification_repository = NotificationRepository()
         # Channel enable flags (database and push enabled by default)
         self._database_enabled: bool = True
-        self._push_enabled: bool = True
+        self._push_enabled: bool = False
         self._email_enabled: bool = False
         self._sms_enabled: bool = False
 
@@ -64,8 +64,9 @@ class NotificationService(Subject):
 
             # Try optional channel deliveries (best-effort)
             await self._deliver_channels(title=title, message=message, data=data or {})
-            if self._database_enabled:
-                await self.notification_repository.mark_sent(notification.notification_id)
+            if self._database_enabled and not (self._email_enabled or self._sms_enabled or self._push_enabled):
+                # If no external channel, keep as PENDING
+                pass
             return TBResponse(
                 message="Notification created successfully",
                 data={"notification": notification}
@@ -130,12 +131,8 @@ class NotificationService(Subject):
     async def _deliver_channels(self, title: str, message: str, data: Dict[str, Any]) -> None:
         tasks = []
         # Print-based push is enabled by flag, no config required
-        if self._push_enabled:
-            tasks.append(self._send_push(title, message, data))
         if self._email_enabled:
             tasks.append(self._send_email(title, message, data))
-        if self._sms_enabled:
-            tasks.append(self._send_sms(title, message, data))
         if tasks:
             # Run best-effort; don't raise if individual fails
             import asyncio
@@ -144,10 +141,6 @@ class NotificationService(Subject):
             for r in results:
                 if isinstance(r, Exception):
                     print(f"Channel delivery error: {r}")
-
-    async def _send_push(self, title: str, message: str, data: Dict[str, Any]) -> None:
-        # Placeholder push: simple print
-        print(f"PUSH: {title} - {message}")
 
     async def _send_email(self, subject: str, body: str, data: Dict[str, Any]) -> None:
         import asyncio
@@ -184,27 +177,7 @@ class NotificationService(Subject):
                 server.send_message(msg)
         await asyncio.to_thread(_send)
 
-    async def _send_sms(self, title: str, message: str, data: Dict[str, Any]) -> None:
-        import asyncio
-        cfg = self._sms_config or {}
-        url = cfg.get("webhook_url")
-        api_key = cfg.get("api_key")
-        to_phone = cfg.get("to_phone")
-        if not all([url, to_phone]):
-            return
-        payload = {
-            "to": to_phone,
-            "text": f"{title}: {message}",
-            "meta": data
-        }
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
-        def _post():
-            import requests
-            requests.post(url, json=payload, headers=headers, timeout=10)
-        await asyncio.to_thread(_post)
+    # SMS and Push removed for now
 
     # Removed telegram-specific push for now; replaced by simple print push
     
@@ -221,6 +194,17 @@ class NotificationService(Subject):
                 message=f"Error retrieving notifications: {str(e)}",
                 data=None
             )
+
+    async def get_notifications_paginated(self, account_id: str, page: int = 1, page_size: int = 20) -> TBResponse:
+        """Get notifications with pagination"""
+        try:
+            items = await self.notification_repository.get_by_account_paginated(account_id, page, page_size)
+            return TBResponse(
+                message="Notifications retrieved successfully",
+                data={"notifications": items, "page": page, "page_size": page_size}
+            )
+        except Exception as e:
+            return TBResponse(message=str(e), data=None)
     
     async def get_notifications_by_type(self, account_id: str, notification_type: str, limit: int = 20) -> TBResponse:
         """Get notifications by type for an account"""

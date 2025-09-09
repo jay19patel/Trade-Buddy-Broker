@@ -42,6 +42,9 @@ def create_app() -> Flask:
             try:
                 account = run_async(broker._get_auth_service().verify_token(jwt_token))
                 g.account_obj = account
+                # capture baseline balance at first login to compute growth
+                if session.get("base_balance") is None:
+                    session["base_balance"] = getattr(account, "balance", 0.0)
             except Exception:
                 g.account_obj = None
 
@@ -59,13 +62,35 @@ def create_app() -> Flask:
                 "available_margin": getattr(acc, "available_margin", 0.0),
                 "margin_percentage": getattr(acc, "margin_percentage", 0.0),
             }
+            base_balance = session.get("base_balance") or 0.0
+            growth_pct = 0.0
+            try:
+                if base_balance and stats["balance"] is not None:
+                    growth_pct = ((stats["balance"] - float(base_balance)) / float(base_balance)) * 100.0
+            except Exception:
+                growth_pct = 0.0
+            stats["growth_percentage_since_login"] = growth_pct
         return {"is_logged_in": is_in, "account_name": name, "account_stats": stats}
 
     @app.get("/")
     def home():
         if not session.get("session_id"):
             return redirect(url_for("login"))
-        return render_template("dashboard.html")
+        # Compose a lightweight summary for the hero section
+        summary = {}
+        if g.account_obj:
+            acc = g.account_obj
+            summary = {
+                "full_name": getattr(acc, "full_name", ""),
+                "email_id": getattr(acc, "email_id", ""),
+                "balance": getattr(acc, "balance", 0.0),
+                "available_margin": getattr(acc, "available_margin", 0.0),
+                "utilized_margin": getattr(acc, "utilized_margin", 0.0),
+                "margin_percentage": getattr(acc, "margin_percentage", 0.0),
+                "default_leverage": getattr(acc, "default_leverage", 1.0),
+                "growth_percentage": ( (getattr(acc, "balance", 0.0) - float(session.get("base_balance") or 0.0)) / float(session.get("base_balance") or 1.0) * 100.0 ) if (session.get("base_balance") not in (None, 0)) else 0.0,
+            }
+        return render_template("home.html", summary=summary)
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -254,6 +279,82 @@ def create_app() -> Flask:
                 except Exception as e:
                     flash(str(e), "error")
         return render_template("prices.html", symbols=symbols, price=price)
+
+    @app.route("/settings", methods=["GET", "POST"]) 
+    def settings():
+        if not session.get("session_id") or g.account_obj is None:
+            return redirect(url_for("login"))
+        if request.method == "POST":
+            try:
+                lev = request.form.get("default_leverage")
+                trailing_status = True if request.form.get("trailing_status") == 'on' else False
+                tsl = request.form.get("trailing_stoploss")
+                tgt = request.form.get("trailing_target")
+                resp = run_async(broker.update_account_settings(
+                    g.account_obj,
+                    default_leverage=float(lev) if lev else None,
+                    trailing_status=trailing_status,
+                    trailing_stoploss=float(tsl) if tsl else None,
+                    trailing_target=float(tgt) if tgt else None
+                ))
+                flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
+                # refresh account in g
+                token = session.get("jwt")
+                if token:
+                    g.account_obj = run_async(broker._get_auth_service().verify_token(token))
+            except Exception as e:
+                flash(str(e), "error")
+        # current settings
+        settings = {
+            "default_leverage": getattr(g.account_obj, "default_leverage", 1.0),
+            "trailing_status": getattr(g.account_obj, "trailing_status", True),
+            "trailing_stoploss": getattr(g.account_obj, "trailing_stoploss", 10.0),
+            "trailing_target": getattr(g.account_obj, "trailing_target", 10.0),
+        }
+        return render_template("settings.html", settings=settings)
+
+    @app.get("/notifications")
+    def notifications():
+        if not session.get("session_id") or g.account_obj is None:
+            return redirect(url_for("login"))
+        try:
+            resp = run_async(broker.get_notifications(g.account_obj, 50))
+            items = (resp.data or {}).get("notifications") if resp else []
+            # Hide already read (status == 'SENT') from default list
+            items = [n for n in items if getattr(n, 'status', None) != 'SENT']
+        except Exception:
+            items = []
+        return render_template("notifications.html", notifications=items)
+
+    @app.get("/notifications/all")
+    def notifications_all():
+        if not session.get("session_id") or g.account_obj is None:
+            return redirect(url_for("login"))
+        # pagination params
+        try:
+            page = int(request.args.get("page", 1))
+        except Exception:
+            page = 1
+        try:
+            resp = run_async(broker.get_notifications_paginated(g.account_obj, page, 20))
+            items = (resp.data or {}).get("notifications") if resp else []
+        except Exception:
+            items = []
+        next_page = page + 1
+        prev_page = page - 1 if page > 1 else None
+        return render_template("notifications_all.html", notifications=items, page=page, next_page=next_page, prev_page=prev_page)
+
+    @app.post("/notifications/action")
+    def notifications_action():
+        if not session.get("session_id") or g.account_obj is None:
+            return redirect(url_for("login"))
+        nid = request.form.get("notification_id")
+        try:
+            resp = run_async(broker.read_notification(nid))
+            flash(resp.message if resp else "Failed", "success" if resp and resp.data else "error")
+        except Exception as e:
+            flash(str(e), "error")
+        return redirect(url_for("notifications"))
 
     return app
 

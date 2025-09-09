@@ -40,6 +40,21 @@ class NotificationRepository(BaseRepository[Notification]):
             )
             result = await session.execute(stmt)
             return list(result.scalars().all())
+
+    async def get_by_account_paginated(self, account_id: str, page: int = 1, page_size: int = 20) -> List[Notification]:
+        """Paginated notifications for an account"""
+        db = get_database_manager()
+        async for session in db.get_session():
+            offset_val = max(0, (page - 1) * page_size)
+            stmt = (
+                select(Notification)
+                .where(Notification.account_id == account_id)
+                .order_by(Notification.created_at.desc())
+                .offset(offset_val)
+                .limit(page_size)
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
     
     async def get_by_type(self, account_id: str, notification_type: NotificationType, limit: int = 20) -> List[Notification]:
         """Get notifications by type for an account"""

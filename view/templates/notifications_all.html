@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Notification - Trade Buddy{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow p-6">
+  <h1 class="text-xl font-semibold mb-3">Notification</h1>
+  {% if notifications and notifications|length %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-100">
+        <tr>
+          <th class="text-left px-3 py-2">Title</th>
+          <th class="text-left px-3 py-2">Message</th>
+          <th class="text-left px-3 py-2">Type</th>
+          <th class="text-left px-3 py-2">Status</th>
+          <th class="text-left px-3 py-2">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in notifications %}
+        <tr class="border-b">
+          <td class="px-3 py-2">{{ n.title }}</td>
+          <td class="px-3 py-2">{{ n.message }}</td>
+          <td class="px-3 py-2">{{ n.notification_type }}</td>
+          <td class="px-3 py-2">{{ n.status }}</td>
+          <td class="px-3 py-2">{{ n.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex items-center justify-between mt-3">
+    <div class="text-sm">Page {{ page }}</div>
+    <div class="space-x-2">
+      {% if prev_page %}
+      <a class="px-3 py-1 border rounded" href="{{ url_for('notifications_all', page=prev_page) }}">Prev</a>
+      {% endif %}
+      <a class="px-3 py-1 border rounded" href="{{ url_for('notifications_all', page=next_page) }}">Next</a>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-500">No notifications.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

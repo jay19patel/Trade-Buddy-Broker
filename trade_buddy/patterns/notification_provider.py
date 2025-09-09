@@ -42,33 +42,3 @@ class EmailNotificationProvider(NotificationProvider):
             return False
 
 
-class SMSNotificationProvider(NotificationProvider):
-    """Provider for sending SMS notifications (placeholder)"""
-    
-    def __init__(self, sms_config: Optional[Dict[str, Any]] = None):
-        self.sms_config = sms_config or {}
-    
-    async def send(self, notification: Notification) -> bool:
-        try:
-            print(f"SMS NOTIFICATION: {notification.title} - {notification.message}")
-            return True
-        except Exception as e:
-            print(f"Error sending SMS notification: {e}")
-            return False
-
-
-class PushNotificationProvider(NotificationProvider):
-    """Provider for sending push notifications (placeholder)"""
-    
-    def __init__(self, push_config: Optional[Dict[str, Any]] = None):
-        self.push_config = push_config or {}
-    
-    async def send(self, notification: Notification) -> bool:
-        try:
-            print(f"PUSH NOTIFICATION: {notification.title} - {notification.message}")
-            return True
-        except Exception as e:
-            print(f"Error sending push notification: {e}")
-            return False
-
-
