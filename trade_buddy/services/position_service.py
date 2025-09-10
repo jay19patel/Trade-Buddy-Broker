@@ -18,7 +18,7 @@ class PositionService:
         self,
         account: Account,
         symbol_id: str,
-        quantity: float,
+        remaining_quantity: float,
         price: float,
         side: str,
         stoploss: Optional[float] = None,
@@ -28,7 +28,7 @@ class PositionService:
         if leverage <= 0:
             leverage = 1.0
         
-        invested_amount = quantity * price
+        invested_amount = remaining_quantity * price
         margin_required = invested_amount / leverage
         
         # Check available margin
@@ -56,7 +56,7 @@ class PositionService:
             account_id=account.account_id,
             symbol_id=symbol_id,
             side=side.upper(),
-            quantity=quantity,
+            remaining_quantity=remaining_quantity,
             avg_price=price,
             status=PositionStatus.OPEN.value,
             position_type=("LONG" if side.upper()=="BUY" else "SHORT"),
@@ -65,7 +65,7 @@ class PositionService:
             margin_used=margin_required,
             stoploss=stoploss,
             target=target,
-            original_quantity=quantity,
+            quantity=remaining_quantity,
             average_entry_price=price,
         )
         return await self.repo.create(position)
@@ -94,7 +94,7 @@ class PositionService:
         # Calculate PnL
         entry_price = position.average_entry_price or position.avg_price
         multiplier = 1 if position.side == 'BUY' else -1
-        remaining_pnl = round((exit_price - entry_price) * position.quantity * multiplier, 2)
+        remaining_pnl = round((exit_price - entry_price) * position.remaining_quantity * multiplier, 2)
         # Add any existing realized PnL from partial exits
         total_pnl = remaining_pnl + (position.realized_pnl or 0.0)
         pnl = round(total_pnl, 2)
@@ -144,14 +144,14 @@ class PositionService:
             raise ValueError(f"Insufficient funds for pyramiding. Required margin: ₹{additional_margin:.2f}, Available: ₹{available_margin:.2f}")
         
         # Compute new totals
-        current_quantity = position.quantity
+        current_quantity = position.remaining_quantity
         old_investment = position.invested_amount or (position.avg_price * current_quantity)
         total_investment = old_investment + add_investment
         new_total_quantity = current_quantity + additional_quantity
         new_average_entry = total_investment / new_total_quantity if new_total_quantity > 0 else position.avg_price
         
-        # Update original_quantity to track total quantity ever held
-        new_original_quantity = position.original_quantity + additional_quantity
+        # Update quantity to track total remaining_quantity ever held
+        new_original_quantity = position.quantity + additional_quantity
 
         # Update account margin usage
         try:
@@ -169,8 +169,8 @@ class PositionService:
         new_position_margin_used = (getattr(position, "margin_used", 0.0) or 0.0) + additional_margin
 
         position_values = {
-            "quantity": new_total_quantity,
-            "original_quantity": new_original_quantity,
+            "remaining_quantity": new_total_quantity,
+            "quantity": new_original_quantity,
             "invested_amount": total_investment,
             "pyramid_count": (position.pyramid_count or 0) + 1,
             "average_entry_price": new_average_entry,
@@ -186,9 +186,9 @@ class PositionService:
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
         
-        # Validation: Check if trying to close more quantity than available
-        if close_quantity > position.quantity:
-            raise ValueError(f"Cannot close {close_quantity} quantity. Only {position.quantity} quantity is available in position.")
+        # Validation: Check if trying to close more remaining_quantity than available
+        if close_quantity > position.remaining_quantity:
+            raise ValueError(f"Cannot close {close_quantity} remaining_quantity. Only {position.remaining_quantity} remaining_quantity is available in position.")
         
         # Calculate realized PnL for the closing leg
         entry_avg = position.average_entry_price or position.avg_price
@@ -196,9 +196,9 @@ class PositionService:
         close_realized = pnl_per_unit * close_quantity
         realized_total = round((position.realized_pnl or 0.0) + close_realized, 2)
 
-        # Update average exit price weighted by exited quantity
-        # Calculate how much was previously exited: original_quantity - current_quantity
-        prev_exit_qty = (position.original_quantity - position.quantity) if (position.original_quantity and position.quantity is not None) else 0.0
+        # Update average exit price weighted by exited remaining_quantity
+        # Calculate how much was previously exited: quantity - current_quantity
+        prev_exit_qty = (position.quantity - position.remaining_quantity) if (position.quantity and position.remaining_quantity is not None) else 0.0
         if prev_exit_qty < 0:
             prev_exit_qty = 0.0
         total_exit_qty = prev_exit_qty + close_quantity
@@ -208,15 +208,15 @@ class PositionService:
         else:
             new_avg_exit = position.average_exit_price or 0.0
 
-        # Margin release proportional to quantity closed
+        # Margin release proportional to remaining_quantity closed
         position_margin_used = (position.margin_used or 0.0)
-        released_margin = position_margin_used * (close_quantity / position.quantity)
+        released_margin = position_margin_used * (close_quantity / position.remaining_quantity)
 
-        remaining = position.quantity - close_quantity
+        remaining = position.remaining_quantity - close_quantity
 
         # Persist position updates atomically
         await self.repo.update_partial(position_id, {
-            "quantity": remaining,
+            "remaining_quantity": remaining,
             "realized_pnl": realized_total,
             "average_exit_price": new_avg_exit,
             "trailing_count": (position.trailing_count or 0) + 1,
@@ -236,7 +236,7 @@ class PositionService:
 
         updated = await self.repo.get_by_id(position_id)
         # If remaining becomes zero due to rounding, close the position fully at average exit
-        if updated.quantity <= 0:
+        if updated.remaining_quantity <= 0:
             return await self.exit_position(account, position_id, exit_price)
         return updated
 

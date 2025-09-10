@@ -96,12 +96,12 @@ class Position(SQLModel, table=True):
     symbol_id: str
     side: str  # BUY/SELL
     position_type: PositionType = PositionType.LONG
-    quantity: float
+    quantity: float = Field(default=0.0)
+    remaining_quantity: float
     avg_price: float
     invested_amount: float
     leverage: float = Field(default=1.0)
     margin_used: float = Field(default=0.0)
-    trading_fee: float = Field(default=0.0)
     status: PositionStatus = PositionStatus.OPEN
     
     # Risk management
@@ -123,8 +123,7 @@ class Position(SQLModel, table=True):
     strategy_name: Optional[str] = None
     notes: Optional[str] = None
     
-    # Advanced features - Pyramiding
-    original_quantity: float = Field(default=0.0)
+    # Advanced features - Pyramidining
     average_entry_price: float = Field(default=0.0)
     pyramid_count: int = Field(default=0)
     

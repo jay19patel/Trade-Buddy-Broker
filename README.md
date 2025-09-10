@@ -84,7 +84,7 @@ All methods return `TBResponse` with `message` and `data`.
 - `get_multiple_prices(symbols: List[{id, type}])` → multiple prices
 
 ### Positions (in-memory)
-- `open_position(symbol_id, quantity, price, side, stoploss?, target?)`
+- `open_position(symbol_id, remaining_quantity, price, side, stoploss?, target?)`
 - `update_position_levels(position_id, stoploss?, target?)`
 - `exit_position(position_id, exit_price)`
 - `get_open_positions()`

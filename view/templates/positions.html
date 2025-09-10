@@ -9,8 +9,8 @@
       <input name="symbol_id" value="AAPL" class="w-full border rounded px-3 py-2" required />
     </div>
     <div>
-      <label class="block text-sm mb-1">Quantity</label>
-      <input type="number" name="quantity" value="1" min="1" class="w-full border rounded px-3 py-2" />
+      <label class="block text-sm mb-1">remaining_quantity</label>
+      <input type="number" name="remaining_quantity" value="1" min="1" class="w-full border rounded px-3 py-2" />
     </div>
     <div>
       <label class="block text-sm mb-1">Price</label>
@@ -52,7 +52,7 @@
           <th class="text-left px-3 py-2">Symbol</th>
           <th class="text-left px-3 py-2">Side</th>
           <th class="text-left px-3 py-2">Type</th>
-          <th class="text-left px-3 py-2">Qty</th>
+          <th class="text-left px-3 py-2">Remaining Qty</th>
           <th class="text-left px-3 py-2">Total Qty</th>
           <th class="text-left px-3 py-2">Avg Entry</th>
           <th class="text-left px-3 py-2">Invested</th>
@@ -75,8 +75,8 @@
           <td class="px-3 py-2 font-medium">{{ p.symbol_id }}</td>
           <td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs {% if p.side == 'BUY' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">{{ p.side }}</span></td>
           <td class="px-3 py-2">{{ p.position_type }}</td>
-          <td class="px-3 py-2 font-medium">{{ p.quantity }}</td>
-          <td class="px-3 py-2">{{ p.original_quantity }}</td>
+          <td class="px-3 py-2 font-medium">{{ p.remaining_quantity }}</td>
+          <td class="px-3 py-2">{{ p.quantity }}</td>
           <td class="px-3 py-2 font-medium">₹{{ '%.2f'|format(p.average_entry_price or p.avg_price) }}</td>
           <td class="px-3 py-2">₹{{ '%.2f'|format(p.invested_amount) }}</td>
           <td class="px-3 py-2">{{ p.leverage }}x</td>
@@ -136,7 +136,7 @@
           <th class="text-left px-3 py-2">Symbol</th>
           <th class="text-left px-3 py-2">Side</th>
           <th class="text-left px-3 py-2">Type</th>
-          <th class="text-left px-3 py-2">Final Qty</th>
+          <th class="text-left px-3 py-2">Remaining Qty</th>
           <th class="text-left px-3 py-2">Total Qty</th>
           <th class="text-left px-3 py-2">Avg Entry</th>
           <th class="text-left px-3 py-2">Avg Exit</th>
@@ -159,8 +159,8 @@
           <td class="px-3 py-2 font-medium">{{ p.symbol_id }}</td>
           <td class="px-3 py-2"><span class="px-2 py-1 rounded text-xs {% if p.side == 'BUY' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">{{ p.side }}</span></td>
           <td class="px-3 py-2">{{ p.position_type }}</td>
+          <td class="px-3 py-2">{{ p.remaining_quantity }}</td>
           <td class="px-3 py-2">{{ p.quantity }}</td>
-          <td class="px-3 py-2">{{ p.original_quantity }}</td>
           <td class="px-3 py-2">₹{{ '%.2f'|format(p.average_entry_price or p.avg_price) }}</td>
           <td class="px-3 py-2">₹{{ '%.2f'|format(p.average_exit_price or p.exit_price or 0) }}</td>
           <td class="px-3 py-2">₹{{ '%.2f'|format(p.invested_amount or 0) }}</td>

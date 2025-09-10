@@ -102,12 +102,12 @@ class NotificationObserver(Observer):
                 account_id=account_id,
                 notification_type="POSITION",
                 title="Position Opened",
-                message=f"Opened {position.side} position in {position.symbol_id} with {position.quantity} shares at ₹{position.avg_price}",
+                message=f"Opened {position.side} position in {position.symbol_id} with {position.remaining_quantity} shares at ₹{position.avg_price}",
                 data={
                     "position_id": position.position_id,
                     "symbol": position.symbol_id,
                     "side": position.side,
-                    "quantity": position.quantity,
+                    "remaining_quantity": position.remaining_quantity,
                     "price": position.avg_price,
                     "leverage": position.leverage
                 }
@@ -174,12 +174,12 @@ class NotificationObserver(Observer):
                 account_id=account_id,
                 notification_type="POSITION",
                 title="Position Pyramided",
-                message=f"Added {additional_quantity} shares to position at ₹{new_price}. Total quantity: {position.quantity}",
+                message=f"Added {additional_quantity} shares to position at ₹{new_price}. Total remaining_quantity: {position.remaining_quantity}",
                 data={
                     "position_id": position.position_id,
                     "additional_quantity": additional_quantity,
                     "new_price": new_price,
-                    "total_quantity": position.quantity
+                    "quantity": position.remaining_quantity
                 }
             )
     
@@ -195,12 +195,12 @@ class NotificationObserver(Observer):
                 account_id=account_id,
                 notification_type="POSITION",
                 title="Position Trailed",
-                message=f"Partially closed {close_quantity} shares at ₹{exit_price}. Remaining: {position.quantity}",
+                message=f"Partially closed {close_quantity} shares at ₹{exit_price}. Remaining: {position.remaining_quantity}",
                 data={
                     "position_id": position.position_id,
                     "close_quantity": close_quantity,
                     "exit_price": exit_price,
-                    "remaining_quantity": position.quantity
+                    "remaining_quantity": position.remaining_quantity
                 }
             )
     

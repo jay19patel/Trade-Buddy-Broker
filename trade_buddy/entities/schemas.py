@@ -40,7 +40,7 @@ class TransactionSchema(BaseModel):
 
 class OpenPositionSchema(BaseModel):
     symbol_id: str = Field(..., min_length=1)
-    quantity: int = Field(..., gt=0)
+    remaining_quantity: int = Field(..., gt=0)
     price: float = Field(..., gt=0)
     side: str = Field(..., pattern="^(BUY|SELL)$")
     stoploss: Optional[float] = Field(default=None, gt=0)

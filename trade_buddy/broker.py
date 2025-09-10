@@ -3,14 +3,14 @@ Main broker class - Production ready Trade Buddy SDK with Database Integration
 """
 
 import asyncio
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 
 from trade_buddy.entities.models import Account
 from trade_buddy.entities.schemas import (
     RegistrationSchema, LoginSchema, TransactionSchema
 )
 from trade_buddy.entities.response_schemas import (
-    UserData, LoginData, AccountData, SymbolData, PriceData
+    UserData, LoginData, AccountData
 )
 from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
 from trade_buddy.core.response import TBResponse
@@ -18,7 +18,6 @@ from trade_buddy.core.database import get_database_manager, initialize_database
 from trade_buddy.core.session_manager import DatabaseSessionManager
 from trade_buddy.services.auth_service import AuthService
 from trade_buddy.services.transaction_service import TransactionService
-from trade_buddy.services.price_service import PriceService
 from trade_buddy.services.position_service import PositionService
 from trade_buddy.services.notification_service import NotificationService
 from trade_buddy.patterns.observer import get_caller_info
@@ -57,7 +56,6 @@ class TradeBuddy:
         # Initialize services with lazy loading
         self._auth_service = None
         self._transaction_service = None
-        self._price_service = None
         self._session_manager = None
         self._position_service = None
         self._notification_service = None
@@ -72,10 +70,6 @@ class TradeBuddy:
             self._transaction_service = TransactionService()
         return self._transaction_service
     
-    def _get_price_service(self):
-        if self._price_service is None:
-            self._price_service = PriceService()
-        return self._price_service
     
     def _get_position_service(self):
         if self._position_service is None:
@@ -354,88 +348,13 @@ class TradeBuddy:
             data={"account": account_data.model_dump()}
         )
     
-    def search_symbols(self, query: str) -> TBResponse:
-        """Search for stock/option symbols"""
-        try:
-            price_service = self._get_price_service()
-            symbols = price_service.search_symbols(query)
-            
-            # Convert to new TBResponse format
-            symbols_data = [SymbolData(**symbol) for symbol in symbols]
-            return TBResponse(
-                message="Symbols found successfully",
-                data={"symbols": [symbol.model_dump() for symbol in symbols_data]}
-            )
-        except Exception as e:
-            raise TradeBuddyException(f"Symbol search failed: {str(e)}")
     
-    def get_live_price(self, symbol_id: str, symbol_type: str = "Stocks") -> TBResponse:
-        """Get live price for a symbol"""
-        try:
-            price_service = self._get_price_service()
-            price_data = price_service.get_stock_price(symbol_id, symbol_type)
-            
-            if price_data:
-                mapped = {
-                    "symbol_id": price_data.get("id", symbol_id),
-                    "symbol_type": price_data.get("type", symbol_type),
-                    "ltp": price_data.get("ltp"),
-                    "open_price": price_data.get("open") or price_data.get("open_price"),
-                    "high_price": price_data.get("high") or price_data.get("high_price"),
-                    "low_price": price_data.get("low") or price_data.get("low_price"),
-                    "prev_close": price_data.get("close") or price_data.get("prev_close"),
-                    "change": price_data.get("change") or 0.0,
-                    "change_percent": price_data.get("changePercent") or price_data.get("change_percent") or 0.0,
-                    "volume": price_data.get("volume") or 0,
-                    "last_updated": price_data.get("last_updated")
-                }
-                price = PriceData(**mapped)
-                return TBResponse(
-                    message="Price retrieved successfully",
-                    data={"price": price.model_dump()}
-                )
-            else:
-                return TBResponse(
-                    message="Symbol not found",
-                    data=None
-                )
-        except Exception as e:
-            raise TradeBuddyException(f"Price fetch failed: {str(e)}")
     
-    def get_multiple_prices(self, symbols: List[Dict[str, str]]) -> TBResponse:
-        """Get live prices for multiple symbols"""
-        try:
-            price_service = self._get_price_service()
-            raw_prices = price_service.get_multiple_prices(symbols)
-            
-            # Convert to new TBResponse format
-            prices_data = []
-            for price in raw_prices:
-                mapped = {
-                    "symbol_id": price.get("id") or price.get("symbol_id"),
-                    "symbol_type": price.get("type") or price.get("symbol_type"),
-                    "ltp": price.get("ltp"),
-                    "open_price": price.get("open") or price.get("open_price"),
-                    "high_price": price.get("high") or price.get("high_price"),
-                    "low_price": price.get("low") or price.get("low_price"),
-                    "prev_close": price.get("close") or price.get("prev_close"),
-                    "change": price.get("change") or 0.0,
-                    "change_percent": price.get("changePercent") or price.get("change_percent") or 0.0,
-                    "volume": price.get("volume") or 0,
-                    "last_updated": price.get("last_updated")
-                }
-                prices_data.append(PriceData(**mapped))
-            return TBResponse(
-                message="Prices retrieved successfully",
-                data={"prices": [price.model_dump() for price in prices_data]}
-            )
-        except Exception as e:
-            raise TradeBuddyException(f"Multiple price fetch failed: {str(e)}")
 
     # Position APIs
-    async def open_position(self, account: Account, symbol_id: str, quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
+    async def open_position(self, account: Account, symbol_id: str, remaining_quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
-            pos = await self._get_position_service().open_position(account, symbol_id, quantity, price, side, stoploss, target)
+            pos = await self._get_position_service().open_position(account, symbol_id, remaining_quantity, price, side, stoploss, target)
             
             # Notify observers about position opened
             notification_service = self._get_notification_service()
@@ -510,6 +429,18 @@ class TradeBuddy:
     async def get_position_history(self, account: Account) -> TBResponse:
         positions = await self._get_position_service().get_position_history(account.account_id)
         return TBResponse(message="Position history", data={"positions": [p.model_dump() for p in positions]})
+
+    async def get_transaction_history(self, account: Account) -> TBResponse:
+        """Get transaction history for account"""
+        try:
+            transaction_service = self._get_transaction_service()
+            transactions = await transaction_service.get_transaction_history(account)
+            return TBResponse(
+                message="Transaction history retrieved successfully",
+                data={"transactions": transactions}
+            )
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to fetch transaction history: {str(e)}")
 
     # Advanced
     async def pyramid(self, account: Account, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:

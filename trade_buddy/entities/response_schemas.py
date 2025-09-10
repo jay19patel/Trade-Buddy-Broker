@@ -85,27 +85,3 @@ class AccountData(BaseModel):
         from_attributes = True
 
 
-class SymbolData(BaseModel):
-    """Symbol search data schema"""
-    symbol_id: str
-    symbol_name: str
-    symbol_type: str
-    
-    class Config:
-        from_attributes = True
-
-
-class PriceData(BaseModel):
-    """Live price data schema"""
-    symbol_id: str
-    symbol_type: str
-    ltp: float
-    open_price: float
-    high_price: float
-    low_price: float
-    prev_close: float
-    change: float
-    change_percent: float
-    
-    class Config:
-        from_attributes = True

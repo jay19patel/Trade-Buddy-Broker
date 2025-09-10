@@ -271,13 +271,13 @@ def create_app() -> Flask:
                 if g.account_obj is None:
                     return redirect(url_for("login"))
                 symbol_id = form.get("symbol_id", "").strip()
-                quantity = int(form.get("quantity", 1))
+                remaining_quantity = int(form.get("remaining_quantity", 1))
                 price = float(form.get("price", 0))
                 side = form.get("side", "BUY")
                 stop = float(form.get("stoploss", 0) or 0)
                 tgt = float(form.get("target", 0) or 0)
                 resp = run_async(broker.open_position(
-                    g.account_obj, symbol_id, quantity, price, side,
+                    g.account_obj, symbol_id, remaining_quantity, price, side,
                     None if stop == 0 else stop,
                     None if tgt == 0 else tgt
                 ))
@@ -328,26 +328,6 @@ def create_app() -> Flask:
             flash(str(e), "error")
         return redirect(url_for("positions"))
 
-    @app.route("/prices", methods=["GET", "POST"]) 
-    def prices():
-        symbols = None
-        price = None
-        if request.method == "POST":
-            if request.form.get("action") == "search":
-                q = request.form.get("query", "")
-                try:
-                    resp = broker.search_symbols(q)
-                    symbols = (resp.data or {}).get("symbols") if resp else None
-                except Exception as e:
-                    flash(str(e), "error")
-            else:
-                sym = request.form.get("symbol_id", "")
-                try:
-                    resp = broker.get_live_price(sym)
-                    price = (resp.data or {}).get("price") if resp else None
-                except Exception as e:
-                    flash(str(e), "error")
-        return render_template("prices.html", symbols=symbols, price=price)
 
     @app.route("/settings", methods=["GET", "POST"]) 
     def settings():
