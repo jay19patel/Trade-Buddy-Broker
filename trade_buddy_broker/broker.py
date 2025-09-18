@@ -824,6 +824,16 @@ class TradeBuddy:
             pnl_data = pnl_response.data.get("pnl_data", [])
             trades_data = trades_response.data.get("trades_data", [])
 
+            # Get open positions count
+            open_positions = await self._get_position_service().get_open_positions(account.account_id)
+            open_positions_count = len(open_positions)
+
+            # Calculate total unrealized PNL from open positions
+            total_unrealized_pnl = 0.0
+            for position in open_positions:
+                if hasattr(position, 'unrealized_pnl') and position.unrealized_pnl is not None:
+                    total_unrealized_pnl += float(position.unrealized_pnl)
+
             # Calculate summary statistics
             total_pnl = sum(item["pnl"] for item in pnl_data)
             total_trades = sum(item["count"] for item in trades_data)
@@ -840,7 +850,9 @@ class TradeBuddy:
                 "avg_pnl_per_trade": round(avg_pnl_per_trade, 2),
                 "win_rate": round(win_rate, 1),
                 "total_trading_days": total_trading_days,
-                "profitable_days": profitable_days
+                "profitable_days": profitable_days,
+                "open_positions_count": open_positions_count,
+                "total_unrealized_pnl": round(total_unrealized_pnl, 2)
             }
 
             return TBResponse(

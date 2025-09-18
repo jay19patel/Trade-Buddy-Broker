@@ -396,11 +396,6 @@ def create_app() -> Flask:
             flash(str(e), "error")
         return redirect(url_for("notifications"))
 
-    @app.get("/notifications/analytics")
-    def notifications_analytics():
-        if not session.get("session_id") or g.account_obj is None:
-            return redirect(url_for("login"))
-        return render_template("notifications_analytics.html")
 
     @app.get("/api/analytics/pnl")
     def api_analytics_pnl():
