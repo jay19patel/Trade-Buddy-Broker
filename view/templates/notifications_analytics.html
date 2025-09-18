@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}Notifications Analytics - Trade Buddy{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg shadow p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">New Notifications - Analytics Overview</h1>
+    
+  </div>
+
+  <!-- Charts Section -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- PNL Chart -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Daily PNL Overview</h2>
+      <div class="h-80 w-full">
+        <canvas id="pnlChart" width="400" height="320"></canvas>
+      </div>
+      <div class="mt-4 text-center">
+        <div id="pnlSummary" class="text-sm text-gray-600">
+          Loading PNL data...
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Count Chart -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Daily Trade Count</h2>
+      <div class="h-80 w-full">
+        <canvas id="tradesChart" width="400" height="320"></canvas>
+      </div>
+      <div class="mt-4 text-center">
+        <div id="tradesSummary" class="text-sm text-gray-600">
+          Loading trades data...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+      <h3 class="text-sm font-medium text-green-800">Total PNL</h3>
+      <p id="totalPnl" class="text-2xl font-bold text-green-900">₹0.00</p>
+    </div>
+    <div class="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+      <h3 class="text-sm font-medium text-blue-800">Total Trades</h3>
+      <p id="totalTrades" class="text-2xl font-bold text-blue-900">0</p>
+    </div>
+    <div class="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+      <h3 class="text-sm font-medium text-purple-800">Avg PNL per Trade</h3>
+      <p id="avgPnl" class="text-2xl font-bold text-purple-900">₹0.00</p>
+    </div>
+    <div class="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
+      <h3 class="text-sm font-medium text-orange-800">Win Rate</h3>
+      <p id="winRate" class="text-2xl font-bold text-orange-900">0%</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loadingState" class="text-center py-8">
+    <div class="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-blue-500 bg-blue-100 transition ease-in-out duration-150">
+      <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Loading analytics data...
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let pnlChart = null;
+let tradesChart = null;
+
+// Load analytics data
+async function loadAnalyticsData() {
+  try {
+    // Fetch all analytics data in one call
+    const summaryResponse = await fetch('/api/analytics/summary');
+    const summaryData = await summaryResponse.json();
+
+    if (summaryData.error) {
+      throw new Error(summaryData.error);
+    }
+
+    const { pnl_data, trades_data, summary } = summaryData.data;
+
+    // Hide loading state
+    document.getElementById('loadingState').style.display = 'none';
+
+    // Create charts
+    createPnlChart(pnl_data || []);
+    createTradesChart(trades_data || []);
+
+    // Update statistics with server-calculated values
+    updateStatisticsFromSummary(summary || {});
+
+  } catch (error) {
+    console.error('Error loading analytics data:', error);
+    document.getElementById('loadingState').innerHTML =
+      '<div class="text-red-500">Error loading data: ' + error.message + '</div>';
+  }
+}
+
+function createPnlChart(data) {
+  const ctx = document.getElementById('pnlChart').getContext('2d');
+
+  const chartData = {
+    labels: data.map(item => {
+      const date = new Date(item.date);
+      return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    }),
+    datasets: [{
+      label: 'Daily PNL (₹)',
+      data: data.map(item => item.pnl),
+      borderColor: data.map(item => item.pnl >= 0 ? '#10b981' : '#ef4444'),
+      backgroundColor: data.map(item => item.pnl >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'),
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4
+    }]
+  };
+
+  pnlChart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `₹${context.parsed.y.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return '₹' + value.toFixed(0);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Update PNL summary
+  const totalPnl = data.reduce((sum, item) => sum + item.pnl, 0);
+  const positiveCount = data.filter(item => item.pnl > 0).length;
+  const winRate = data.length > 0 ? ((positiveCount / data.length) * 100).toFixed(1) : 0;
+
+  document.getElementById('pnlSummary').innerHTML =
+    `Total: ₹${totalPnl.toFixed(2)} | Win Rate: ${winRate}% | ${data.length} trading days`;
+}
+
+function createTradesChart(data) {
+  const ctx = document.getElementById('tradesChart').getContext('2d');
+
+  const chartData = {
+    labels: data.map(item => {
+      const date = new Date(item.date);
+      return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    }),
+    datasets: [{
+      label: 'Daily Trades',
+      data: data.map(item => item.count),
+      backgroundColor: 'rgba(59, 130, 246, 0.6)',
+      borderColor: 'rgb(59, 130, 246)',
+      borderWidth: 1
+    }]
+  };
+
+  tradesChart = new Chart(ctx, {
+    type: 'bar',
+    data: chartData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
+
+  // Update trades summary
+  const totalTrades = data.reduce((sum, item) => sum + item.count, 0);
+  const avgTrades = data.length > 0 ? (totalTrades / data.length).toFixed(1) : 0;
+  const maxTrades = data.length > 0 ? Math.max(...data.map(item => item.count)) : 0;
+
+  document.getElementById('tradesSummary').innerHTML =
+    `Total: ${totalTrades} trades | Average: ${avgTrades}/day | Peak: ${maxTrades}/day`;
+}
+
+function updateStatisticsFromSummary(summary) {
+  // Use server-calculated statistics
+  const totalPnl = summary.total_pnl || 0;
+  const totalTrades = summary.total_trades || 0;
+  const avgPnl = summary.avg_pnl_per_trade || 0;
+  const winRate = summary.win_rate || 0;
+
+  // Update DOM
+  document.getElementById('totalPnl').textContent = `₹${totalPnl.toFixed(2)}`;
+  document.getElementById('totalTrades').textContent = totalTrades;
+  document.getElementById('avgPnl').textContent = `₹${avgPnl.toFixed(2)}`;
+  document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+
+  // Update colors based on performance
+  const totalPnlElement = document.getElementById('totalPnl');
+  const totalPnlCard = totalPnlElement.closest('div');
+
+  if (totalPnl >= 0) {
+    // Keep green theme for positive PNL
+    totalPnlCard.className = 'bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4';
+    totalPnlElement.className = 'text-2xl font-bold text-green-900';
+  } else {
+    // Change to red theme for negative PNL
+    totalPnlCard.className = 'bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-4';
+    totalPnlElement.className = 'text-2xl font-bold text-red-900';
+  }
+}
+
+// Keep the old function for backward compatibility (not used anymore)
+function updateStatistics(pnlData, tradesData) {
+  // Calculate statistics
+  const totalPnl = pnlData.reduce((sum, item) => sum + item.pnl, 0);
+  const totalTrades = tradesData.reduce((sum, item) => sum + item.count, 0);
+  const avgPnl = totalTrades > 0 ? (totalPnl / totalTrades) : 0;
+  const positiveCount = pnlData.filter(item => item.pnl > 0).length;
+  const winRate = pnlData.length > 0 ? ((positiveCount / pnlData.length) * 100) : 0;
+
+  // Update DOM
+  document.getElementById('totalPnl').textContent = `₹${totalPnl.toFixed(2)}`;
+  document.getElementById('totalTrades').textContent = totalTrades;
+  document.getElementById('avgPnl').textContent = `₹${avgPnl.toFixed(2)}`;
+  document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+}
+
+// Load data when page loads
+document.addEventListener('DOMContentLoaded', loadAnalyticsData);
+</script>
+{% endblock %}

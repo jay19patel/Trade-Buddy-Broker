@@ -710,7 +710,7 @@ class TradeBuddy:
         try:
             auth_service = self._get_auth_service()
             account = await auth_service.verify_token(token)
-            
+
             if account:
                 return TBResponse(
                     message="Token is valid",
@@ -725,9 +725,132 @@ class TradeBuddy:
                     message="Invalid token",
                     data={"valid": False}
                 )
-                
+
         except AuthenticationError as e:
             return TBResponse(
                 message=str(e),
                 data={"valid": False}
             )
+
+    async def get_analytics_pnl_data(self, account: Account) -> TBResponse:
+        """Get PNL data grouped by date for analytics"""
+        try:
+            from collections import defaultdict
+            from datetime import datetime
+
+            # Get position history
+            positions = await self._get_position_service().get_position_history(account.account_id)
+
+            # Group PnL by date
+            pnl_by_date = defaultdict(float)
+
+            for position in positions:
+                if hasattr(position, 'closed_at') and position.closed_at and hasattr(position, 'pnl') and position.pnl is not None:
+                    # Handle datetime object properly
+                    if isinstance(position.closed_at, datetime):
+                        date_str = position.closed_at.strftime('%Y-%m-%d')
+                    elif isinstance(position.closed_at, str):
+                        # Parse ISO string and extract date
+                        try:
+                            dt = datetime.fromisoformat(position.closed_at.replace('Z', '+00:00'))
+                            date_str = dt.strftime('%Y-%m-%d')
+                        except:
+                            continue
+                    else:
+                        continue
+
+                    pnl_by_date[date_str] += float(position.pnl)
+
+            # Sort by date and format for chart
+            sorted_dates = sorted(pnl_by_date.keys())
+            chart_data = [{"date": date, "pnl": round(pnl_by_date[date], 2)} for date in sorted_dates]
+
+            return TBResponse(
+                message="PNL analytics data retrieved successfully",
+                data={"pnl_data": chart_data}
+            )
+
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to get PNL analytics: {str(e)}")
+
+    async def get_analytics_trades_data(self, account: Account) -> TBResponse:
+        """Get trade count data grouped by date for analytics"""
+        try:
+            from collections import defaultdict
+            from datetime import datetime
+
+            # Get position history
+            positions = await self._get_position_service().get_position_history(account.account_id)
+
+            # Group trades by date
+            trades_by_date = defaultdict(int)
+
+            for position in positions:
+                if hasattr(position, 'opened_at') and position.opened_at:
+                    # Handle datetime object properly
+                    if isinstance(position.opened_at, datetime):
+                        date_str = position.opened_at.strftime('%Y-%m-%d')
+                    elif isinstance(position.opened_at, str):
+                        # Parse ISO string and extract date
+                        try:
+                            dt = datetime.fromisoformat(position.opened_at.replace('Z', '+00:00'))
+                            date_str = dt.strftime('%Y-%m-%d')
+                        except:
+                            continue
+                    else:
+                        continue
+
+                    trades_by_date[date_str] += 1
+
+            # Sort by date and format for chart
+            sorted_dates = sorted(trades_by_date.keys())
+            chart_data = [{"date": date, "count": trades_by_date[date]} for date in sorted_dates]
+
+            return TBResponse(
+                message="Trades analytics data retrieved successfully",
+                data={"trades_data": chart_data}
+            )
+
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to get trades analytics: {str(e)}")
+
+    async def get_analytics_summary(self, account: Account) -> TBResponse:
+        """Get complete analytics summary including statistics"""
+        try:
+            # Get both datasets
+            pnl_response = await self.get_analytics_pnl_data(account)
+            trades_response = await self.get_analytics_trades_data(account)
+
+            pnl_data = pnl_response.data.get("pnl_data", [])
+            trades_data = trades_response.data.get("trades_data", [])
+
+            # Calculate summary statistics
+            total_pnl = sum(item["pnl"] for item in pnl_data)
+            total_trades = sum(item["count"] for item in trades_data)
+            avg_pnl_per_trade = (total_pnl / total_trades) if total_trades > 0 else 0.0
+
+            # Calculate win rate (based on profitable days)
+            profitable_days = len([item for item in pnl_data if item["pnl"] > 0])
+            total_trading_days = len(pnl_data)
+            win_rate = (profitable_days / total_trading_days * 100) if total_trading_days > 0 else 0.0
+
+            summary = {
+                "total_pnl": round(total_pnl, 2),
+                "total_trades": total_trades,
+                "avg_pnl_per_trade": round(avg_pnl_per_trade, 2),
+                "win_rate": round(win_rate, 1),
+                "total_trading_days": total_trading_days,
+                "profitable_days": profitable_days
+            }
+
+            return TBResponse(
+                message="Analytics summary retrieved successfully",
+                data={
+                    "pnl_data": pnl_data,
+                    "trades_data": trades_data,
+                    "summary": summary
+                }
+            )
+
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to get analytics summary: {str(e)}")

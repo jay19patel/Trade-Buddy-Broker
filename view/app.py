@@ -396,6 +396,48 @@ def create_app() -> Flask:
             flash(str(e), "error")
         return redirect(url_for("notifications"))
 
+    @app.get("/notifications/analytics")
+    def notifications_analytics():
+        if not session.get("session_id") or g.account_obj is None:
+            return redirect(url_for("login"))
+        return render_template("notifications_analytics.html")
+
+    @app.get("/api/analytics/pnl")
+    def api_analytics_pnl():
+        if not session.get("session_id") or g.account_obj is None:
+            return {"error": "Unauthorized"}, 401
+        try:
+            resp = run_async(broker.get_analytics_pnl_data(g.account_obj))
+            if resp and resp.data:
+                return {"data": resp.data.get("pnl_data", [])}
+            return {"data": []}
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    @app.get("/api/analytics/trades")
+    def api_analytics_trades():
+        if not session.get("session_id") or g.account_obj is None:
+            return {"error": "Unauthorized"}, 401
+        try:
+            resp = run_async(broker.get_analytics_trades_data(g.account_obj))
+            if resp and resp.data:
+                return {"data": resp.data.get("trades_data", [])}
+            return {"data": []}
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    @app.get("/api/analytics/summary")
+    def api_analytics_summary():
+        if not session.get("session_id") or g.account_obj is None:
+            return {"error": "Unauthorized"}, 401
+        try:
+            resp = run_async(broker.get_analytics_summary(g.account_obj))
+            if resp and resp.data:
+                return {"data": resp.data}
+            return {"data": {"pnl_data": [], "trades_data": [], "summary": {}}}
+        except Exception as e:
+            return {"error": str(e)}, 500
+
     return app
 
 
