@@ -4,9 +4,9 @@ Async DB-backed Position service
 
 from typing import List, Optional
 
-from trade_buddy.entities.models import Account, Position, PositionStatus
-from trade_buddy.repositories.position_repository import PositionRepository
-from trade_buddy.utils.security import SecurityManager
+from trade_buddy_broker.entities.models import Account, Position, PositionStatus
+from trade_buddy_broker.repositories.position_repository import PositionRepository
+from trade_buddy_broker.utils.security import SecurityManager
 
 
 class PositionService:
@@ -38,7 +38,7 @@ class PositionService:
         
         # Update account margins first
         try:
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             
             # Update margin calculations
@@ -105,7 +105,7 @@ class PositionService:
         
         # Update account balance with PnL and release margin
         try:
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             # Add PnL to balance and release margin
             account.balance = (getattr(account, "balance", 0.0) or 0.0) + pnl
@@ -155,7 +155,7 @@ class PositionService:
 
         # Update account margin usage
         try:
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + additional_margin
             account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
@@ -225,7 +225,7 @@ class PositionService:
 
         # Update account margins accordingly
         try:
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - released_margin, 0.0)
             account.available_margin = max(account.balance - account.utilized_margin, 0.0)

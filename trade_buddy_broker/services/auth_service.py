@@ -4,12 +4,12 @@ Authentication service
 
 from datetime import timedelta
 from typing import Optional
-from trade_buddy.entities.models import Account
-from trade_buddy.entities.schemas import RegistrationSchema, LoginSchema
-from trade_buddy.core.exceptions import AuthenticationError, ValidationError
-from trade_buddy.core.response import TBResponse
-from trade_buddy.utils.security import SecurityManager
-from trade_buddy.repositories.account_repository import AccountRepository
+from trade_buddy_broker.entities.models import Account
+from trade_buddy_broker.entities.schemas import RegistrationSchema, LoginSchema
+from trade_buddy_broker.core.exceptions import AuthenticationError, ValidationError
+from trade_buddy_broker.core.response import TBResponse
+from trade_buddy_broker.utils.security import SecurityManager
+from trade_buddy_broker.repositories.account_repository import AccountRepository
 
 
 class AuthService:

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from trade_buddy.entities.models import Notification
+from trade_buddy_broker.entities.models import Notification
 
 
 class NotificationProvider(ABC):

@@ -15,7 +15,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from trade_buddy.broker import TradeBuddy
+from trade_buddy_broker.broker import TradeBuddy
 
 
 def create_app() -> Flask:
@@ -254,7 +254,7 @@ def create_app() -> Flask:
         txns = []
         try:
             if g.account_obj:
-                from trade_buddy.services.transaction_service import TransactionService
+                from trade_buddy_broker.services.transaction_service import TransactionService
                 ts = TransactionService()
                 txns = run_async(ts.get_transaction_history(g.account_obj))
         except Exception:

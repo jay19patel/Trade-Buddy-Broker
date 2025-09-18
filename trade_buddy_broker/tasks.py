@@ -27,8 +27,8 @@ app = _make_celery()
 
 @app.task(name="trade_buddy.clear_database")
 def clear_database_task() -> bool:
-    from trade_buddy.core.database import get_database_manager
-    from trade_buddy.core.session_manager import DatabaseSessionManager
+    from trade_buddy_broker.core.database import get_database_manager
+    from trade_buddy_broker.core.session_manager import DatabaseSessionManager
 
     async def run():
         db = get_database_manager()
@@ -41,7 +41,7 @@ def clear_database_task() -> bool:
 
 @app.task(name="trade_buddy.delete_account")
 def delete_account_task(account_id: str) -> bool:
-    from trade_buddy.core.database import get_database_manager
+    from trade_buddy_broker.core.database import get_database_manager
 
     async def run():
         db = get_database_manager()
@@ -53,7 +53,7 @@ def delete_account_task(account_id: str) -> bool:
 
 @app.task(name="trade_buddy.cleanup_expired_sessions")
 def cleanup_expired_sessions_task() -> int:
-    from trade_buddy.core.database import get_database_manager
+    from trade_buddy_broker.core.database import get_database_manager
 
     async def run():
         db = get_database_manager()

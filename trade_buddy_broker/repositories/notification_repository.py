@@ -1,9 +1,9 @@
 from typing import List, Optional, Dict, Any
 from sqlmodel import select, update, delete
 from datetime import datetime, timezone
-from trade_buddy.entities.models import Notification, NotificationType, NotificationStatus
-from trade_buddy.core.database import get_database_manager
-from trade_buddy.repositories.base import BaseRepository
+from trade_buddy_broker.entities.models import Notification, NotificationType, NotificationStatus
+from trade_buddy_broker.core.database import get_database_manager
+from trade_buddy_broker.repositories.base import BaseRepository
 
 class NotificationRepository(BaseRepository[Notification]):
     """Repository for managing notifications"""

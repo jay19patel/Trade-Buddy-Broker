@@ -2,13 +2,13 @@
 Transaction management service
 """
 
-from trade_buddy.entities.models import Account, Transaction, TransactionType
-from trade_buddy.entities.schemas import TransactionSchema
-from trade_buddy.core.exceptions import InsufficientFundsError, ValidationError
-from trade_buddy.core.response import TBResponse
-from trade_buddy.utils.security import SecurityManager
-from trade_buddy.repositories.account_repository import AccountRepository
-from trade_buddy.repositories.transaction_repository import TransactionRepository
+from trade_buddy_broker.entities.models import Account, Transaction, TransactionType
+from trade_buddy_broker.entities.schemas import TransactionSchema
+from trade_buddy_broker.core.exceptions import InsufficientFundsError, ValidationError
+from trade_buddy_broker.core.response import TBResponse
+from trade_buddy_broker.utils.security import SecurityManager
+from trade_buddy_broker.repositories.account_repository import AccountRepository
+from trade_buddy_broker.repositories.transaction_repository import TransactionRepository
 
 
 class TransactionService:

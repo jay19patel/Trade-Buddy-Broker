@@ -1,9 +1,9 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from trade_buddy.entities.models import Notification, NotificationType, NotificationStatus
-from trade_buddy.repositories.notification_repository import NotificationRepository
-from trade_buddy.patterns.observer import Subject, NotificationObserver, ErrorObserver
-from trade_buddy.core.response import TBResponse
+from trade_buddy_broker.entities.models import Notification, NotificationType, NotificationStatus
+from trade_buddy_broker.repositories.notification_repository import NotificationRepository
+from trade_buddy_broker.patterns.observer import Subject, NotificationObserver, ErrorObserver
+from trade_buddy_broker.core.response import TBResponse
 
 class NotificationService(Subject):
     """Service for managing notifications in a simple, direct way"""

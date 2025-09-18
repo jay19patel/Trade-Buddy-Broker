@@ -10,10 +10,10 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 
-from trade_buddy.entities.models import Account, Session
-from trade_buddy.utils.security import SecurityManager
-from trade_buddy.utils.singleton import Singleton
-from trade_buddy.core.database import get_database_manager
+from trade_buddy_broker.entities.models import Account, Session
+from trade_buddy_broker.utils.security import SecurityManager
+from trade_buddy_broker.utils.singleton import Singleton
+from trade_buddy_broker.core.database import get_database_manager
 
 
 class DatabaseSessionManager(Singleton):
@@ -198,7 +198,7 @@ class DatabaseSessionManager(Singleton):
             return None
         
         # Get account details
-        from trade_buddy.repositories import AccountRepository
+        from trade_buddy_broker.repositories import AccountRepository
         account_repo = AccountRepository()
         account = await account_repo.get_by_id(session_data['account_id'])
         

@@ -5,22 +5,22 @@ Main broker class - Production ready Trade Buddy SDK with Database Integration
 import asyncio
 from typing import Optional, Dict, Any
 
-from trade_buddy.entities.models import Account
-from trade_buddy.entities.schemas import (
+from trade_buddy_broker.entities.models import Account
+from trade_buddy_broker.entities.schemas import (
     RegistrationSchema, LoginSchema, TransactionSchema
 )
-from trade_buddy.entities.response_schemas import (
+from trade_buddy_broker.entities.response_schemas import (
     UserData, LoginData, AccountData
 )
-from trade_buddy.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
-from trade_buddy.core.response import TBResponse
-from trade_buddy.core.database import get_database_manager, initialize_database
-from trade_buddy.core.session_manager import DatabaseSessionManager
-from trade_buddy.services.auth_service import AuthService
-from trade_buddy.services.transaction_service import TransactionService
-from trade_buddy.services.position_service import PositionService
-from trade_buddy.services.notification_service import NotificationService
-from trade_buddy.patterns.observer import get_caller_info
+from trade_buddy_broker.core.exceptions import AuthenticationError, ValidationError, TradeBuddyException
+from trade_buddy_broker.core.response import TBResponse
+from trade_buddy_broker.core.database import get_database_manager, initialize_database
+from trade_buddy_broker.core.session_manager import DatabaseSessionManager
+from trade_buddy_broker.services.auth_service import AuthService
+from trade_buddy_broker.services.transaction_service import TransactionService
+from trade_buddy_broker.services.position_service import PositionService
+from trade_buddy_broker.services.notification_service import NotificationService
+from trade_buddy_broker.patterns.observer import get_caller_info
 
 
 class TradeBuddy:
@@ -110,7 +110,7 @@ class TradeBuddy:
             auth_service = self._get_auth_service()
             
             # Create demo account
-            from trade_buddy.utils.security import SecurityManager
+            from trade_buddy_broker.utils.security import SecurityManager
             security = SecurityManager()
             
             demo_balance = 100000.0
@@ -129,7 +129,7 @@ class TradeBuddy:
                 margin_percentage=0.0
             )
             
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             account_repo = AccountRepository()
             
             try:
@@ -162,7 +162,7 @@ class TradeBuddy:
         session_data = await self._require_authentication()
         
         # Get account from session data
-        from trade_buddy.repositories import AccountRepository
+        from trade_buddy_broker.repositories import AccountRepository
         account_repo = AccountRepository()
         account = await account_repo.get_by_id(session_data['account_id'])
         if not account:
@@ -320,7 +320,7 @@ class TradeBuddy:
         """Get current account details with updated margin calculations"""
         # Refresh account from database to get latest margin values
         try:
-            from trade_buddy.repositories.account_repository import AccountRepository
+            from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             fresh_account = await acc_repo.get_by_id(account.account_id)
             if fresh_account:
@@ -550,7 +550,7 @@ class TradeBuddy:
             if leverage <= 0:
                 raise ValidationError("Leverage must be > 0")
             # Persist on account model (in-memory repo in this flow)
-            from trade_buddy.repositories import AccountRepository
+            from trade_buddy_broker.repositories import AccountRepository
             repo = AccountRepository()
             old_leverage = account.default_leverage
             account.default_leverage = leverage

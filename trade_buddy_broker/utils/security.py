@@ -11,7 +11,7 @@ import jwt
 from datetime import timedelta, datetime
 from typing import Dict, Any, Optional
 from .singleton import Singleton
-from trade_buddy.core.exceptions import TradeBuddyException, AuthenticationError, ValidationError
+from trade_buddy_broker.core.exceptions import TradeBuddyException, AuthenticationError, ValidationError
 
 
 class SecurityManager(Singleton):

@@ -5,9 +5,9 @@ Account repository implementation
 from typing import List, Optional, Dict
 from sqlmodel import select, update, delete
 from .base import BaseRepository
-from trade_buddy.entities.models import Account
-from trade_buddy.core.exceptions import DataNotFoundError, TradeBuddyException
-from trade_buddy.core.database import get_database_manager
+from trade_buddy_broker.entities.models import Account
+from trade_buddy_broker.core.exceptions import DataNotFoundError, TradeBuddyException
+from trade_buddy_broker.core.database import get_database_manager
 
 
 class AccountRepository(BaseRepository[Account]):

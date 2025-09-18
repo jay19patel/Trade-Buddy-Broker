@@ -4,8 +4,8 @@ Async DB-backed Position repository (SQLModel/SQLAlchemy AsyncSession)
 
 from typing import List, Optional
 from sqlalchemy import select, update
-from trade_buddy.entities.models import Position, PositionStatus
-from trade_buddy.core.database import get_database_manager
+from trade_buddy_broker.entities.models import Position, PositionStatus
+from trade_buddy_broker.core.database import get_database_manager
 
 
 class PositionRepository:
