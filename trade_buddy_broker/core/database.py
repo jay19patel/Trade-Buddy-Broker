@@ -79,6 +79,7 @@ class DatabaseManager:
                 from sqlalchemy import text
                 
                 # Delete in correct order to respect foreign key constraints
+                await session.execute(text("DELETE FROM orders"))
                 await session.execute(text("DELETE FROM sessions"))
                 await session.execute(text("DELETE FROM transactions"))
                 await session.execute(text("DELETE FROM accounts"))
@@ -99,6 +100,7 @@ class DatabaseManager:
                 from sqlalchemy import text
                 
                 # Delete in correct order
+                await session.execute(text("DELETE FROM orders WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM sessions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM transactions WHERE account_id = :account_id"), {"account_id": account_id})
                 await session.execute(text("DELETE FROM accounts WHERE account_id = :account_id"), {"account_id": account_id})

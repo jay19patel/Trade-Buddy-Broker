@@ -20,7 +20,8 @@ from trade_buddy_broker.services.auth_service import AuthService
 from trade_buddy_broker.services.transaction_service import TransactionService
 from trade_buddy_broker.services.position_service import PositionService
 from trade_buddy_broker.services.notification_service import NotificationService
-from trade_buddy_broker.patterns.observer import get_caller_info
+from trade_buddy_broker.services.order_service import OrderService
+from trade_buddy_broker.providers.notification_observer import get_caller_info
 
 
 class TradeBuddy:
@@ -59,6 +60,7 @@ class TradeBuddy:
         self._session_manager = None
         self._position_service = None
         self._notification_service = None
+        self._order_service = None
     
     def _get_auth_service(self):
         if self._auth_service is None:
@@ -80,6 +82,11 @@ class TradeBuddy:
         if self._notification_service is None:
             self._notification_service = NotificationService()
         return self._notification_service
+
+    def _get_order_service(self):
+        if self._order_service is None:
+            self._order_service = OrderService()
+        return self._order_service
     
     def _get_session_manager(self):
         """Get session manager with lazy initialization - only when needed"""
@@ -355,15 +362,34 @@ class TradeBuddy:
     async def open_position(self, account: Account, symbol_id: str, remaining_quantity: int, price: float, side: str, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
             pos = await self._get_position_service().open_position(account, symbol_id, remaining_quantity, price, side, stoploss, target)
-            
+
+            # Create orders for the new position (all PENDING initially)
+            order_service = self._get_order_service()
+            orders = await order_service.create_position_orders(pos)
+
+            # Auto-execute the main BUY/SELL order for position opening
+            from trade_buddy_broker.entities.models import OrderType
+            executed_orders = []
+            for order in orders:
+                if order.order_type in [OrderType.BUY, OrderType.SELL]:
+                    executed_order = await order_service.execute_order(order.id)
+                    if executed_order:
+                        executed_orders.append(executed_order)
+
             # Notify observers about position opened
             notification_service = self._get_notification_service()
             await notification_service.notify("position_opened", {
                 "account_id": account.account_id,
-                "position": pos
+                "position": pos,
+                "orders": [order.model_dump() for order in orders],
+                "executed_orders": [order.model_dump() for order in executed_orders]
             })
-            
-            return TBResponse(message="Position opened successfully", data={"position": pos.model_dump()})
+
+            return TBResponse(message="Position opened successfully", data={
+                "position": pos.model_dump(),
+                "orders": [order.model_dump() for order in orders],
+                "executed_orders": [order.model_dump() for order in executed_orders]
+            })
         except ValueError as e:
             # Return user-friendly error for insufficient funds
             return TBResponse(message=str(e), data=None)
@@ -386,23 +412,42 @@ class TradeBuddy:
 
     async def exit_position(self, account: Account, position_id: str, exit_price: float, close_quantity: float | None = None) -> TBResponse:
         try:
+            from trade_buddy_broker.entities.models import OrderType
+            order_service = self._get_order_service()
+
             if close_quantity is not None and close_quantity > 0:
                 pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
+                # Create trailing order
+                exit_order = await order_service.create_trailing_order(pos, close_quantity, exit_price)
             else:
                 pos = await self._get_position_service().exit_position(account, position_id, exit_price)
+                # Create exit order
+                exit_order = await order_service.create_exit_order(pos, exit_price, close_quantity)
+                # Cancel pending orders if position is fully closed
+                if getattr(pos, "status", None) == "CLOSED":
+                    await order_service.cancel_pending_orders(position_id)
+
+            # Auto-execute the exit order
+            executed_order = await order_service.execute_order(exit_order.id)
 
             # Notify observers about position closed/partial
             notification_service = self._get_notification_service()
             event_name = "position_closed" if getattr(pos, "status", None) == "CLOSED" else "position_trailed"
             payload = {
                 "account_id": account.account_id,
-                "position": pos
+                "position": pos,
+                "exit_order": exit_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
             }
             if close_quantity is not None and close_quantity > 0:
                 payload.update({"close_quantity": close_quantity, "exit_price": exit_price})
             await notification_service.notify(event_name, payload)
 
-            return TBResponse(message="Position exited successfully" if event_name == "position_closed" else "Partial exit applied successfully", data={"position": pos.model_dump()})
+            return TBResponse(message="Position exited successfully" if event_name == "position_closed" else "Partial exit applied successfully", data={
+                "position": pos.model_dump(),
+                "exit_order": exit_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
+            })
         except ValueError as e:
             # Return user-friendly error
             return TBResponse(message=str(e), data=None)
@@ -430,6 +475,78 @@ class TradeBuddy:
         positions = await self._get_position_service().get_position_history(account.account_id)
         return TBResponse(message="Position history", data={"positions": [p.model_dump() for p in positions]})
 
+    async def get_orders(self, account: Account, position_id: str) -> TBResponse:
+        """Get all orders for a specific position"""
+        try:
+            order_service = self._get_order_service()
+            orders = await order_service.get_orders_by_position(position_id)
+
+            # Sort orders by order_time
+            orders.sort(key=lambda x: x.order_time)
+
+            return TBResponse(
+                message="Orders retrieved successfully",
+                data={"orders": [order.model_dump() for order in orders]}
+            )
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to get orders: {str(e)}")
+
+    async def get_all_orders(self, account: Account) -> TBResponse:
+        """Get all orders for an account"""
+        try:
+            order_service = self._get_order_service()
+            orders = await order_service.get_orders_by_account(account.account_id)
+
+            # Sort orders by order_time (newest first)
+            orders.sort(key=lambda x: x.order_time, reverse=True)
+
+            return TBResponse(
+                message="All orders retrieved successfully",
+                data={"orders": [order.model_dump() for order in orders]}
+            )
+        except Exception as e:
+            raise TradeBuddyException(f"Failed to get all orders: {str(e)}")
+
+    async def order_execute(self, account: Account, order_id: str) -> TBResponse:
+        """Execute a pending order by ID"""
+        try:
+            order_service = self._get_order_service()
+            executed_order = await order_service.execute_order(order_id)
+
+            if executed_order:
+                # Notify observers about order execution
+                notification_service = self._get_notification_service()
+                await notification_service.notify("order_executed", {
+                    "account_id": account.account_id,
+                    "order": executed_order.model_dump()
+                })
+
+                return TBResponse(
+                    message=f"Order {order_id} executed successfully",
+                    data={"order": executed_order.model_dump()}
+                )
+            else:
+                return TBResponse(
+                    message=f"Failed to execute order {order_id}",
+                    data=None
+                )
+
+        except Exception as e:
+            # Notify observers about error
+            try:
+                notification_service = self._get_notification_service()
+                caller_info = get_caller_info()
+                await notification_service.notify("error_occurred", {
+                    "account_id": account.account_id,
+                    "error": e,
+                    "function_name": caller_info["function_name"],
+                    "class_name": caller_info["class_name"],
+                    "file_name": caller_info["file_name"]
+                })
+            except:
+                pass
+            raise TradeBuddyException(f"Failed to execute order: {str(e)}")
+
     async def get_transaction_history(self, account: Account) -> TBResponse:
         """Get transaction history for account"""
         try:
@@ -446,17 +563,33 @@ class TradeBuddy:
     async def pyramid(self, account: Account, position_id: str, additional_quantity: float, new_price: float) -> TBResponse:
         try:
             pos = await self._get_position_service().add_to_position(account, position_id, additional_quantity, new_price)
-            
+
+            # Create pyramid order
+            order_service = self._get_order_service()
+            pyramid_order = await order_service.create_pyramid_order(pos, additional_quantity, new_price)
+
+            # Auto-execute the pyramid order
+            executed_order = await order_service.execute_order(pyramid_order.id)
+
+            # Update pending orders with new quantities
+            await order_service.update_pending_orders_on_position_update(pos)
+
             # Notify observers about position pyramided
             notification_service = self._get_notification_service()
             await notification_service.notify("position_pyramided", {
                 "account_id": account.account_id,
                 "position": pos,
                 "additional_quantity": additional_quantity,
-                "new_price": new_price
+                "new_price": new_price,
+                "pyramid_order": pyramid_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
             })
-            
-            return TBResponse(message="Pyramiding applied successfully", data={"position": pos.model_dump()})
+
+            return TBResponse(message="Pyramiding applied successfully", data={
+                "position": pos.model_dump(),
+                "pyramid_order": pyramid_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
+            })
         except ValueError as e:
             # Return user-friendly error for insufficient funds
             return TBResponse(message=str(e), data=None)
@@ -478,21 +611,39 @@ class TradeBuddy:
 
     async def trailing(self, account: Account, position_id: str, close_quantity: float, exit_price: float, stoploss: float | None = None, target: float | None = None) -> TBResponse:
         try:
+            order_service = self._get_order_service()
+
             # Always update levels when provided; trailing feature flag removed
             if stoploss is not None or target is not None:
                 await self._get_position_service().update_levels(account, position_id, stoploss, target)
+
             pos = await self._get_position_service().partial_close(account, position_id, close_quantity, exit_price)
-            
+
+            # Create trailing order
+            trailing_order = await order_service.create_trailing_order(pos, close_quantity, exit_price)
+
+            # Auto-execute the trailing order
+            executed_order = await order_service.execute_order(trailing_order.id)
+
+            # Update pending orders with new quantities
+            await order_service.update_pending_orders_on_position_update(pos)
+
             # Notify observers about position trailed
             notification_service = self._get_notification_service()
             await notification_service.notify("position_trailed", {
                 "account_id": account.account_id,
                 "position": pos,
                 "close_quantity": close_quantity,
-                "exit_price": exit_price
+                "exit_price": exit_price,
+                "trailing_order": trailing_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
             })
-            
-            return TBResponse(message="Trailing partial exit applied", data={"position": pos.model_dump()})
+
+            return TBResponse(message="Trailing partial exit applied", data={
+                "position": pos.model_dump(),
+                "trailing_order": trailing_order.model_dump(),
+                "executed_order": executed_order.model_dump() if executed_order else None
+            })
         except Exception as e:
             # Notify observers about error
             try:
@@ -513,22 +664,30 @@ class TradeBuddy:
         """Update position stop loss and target levels"""
         try:
             pos = await self._get_position_service().update_levels(account, position_id, stoploss, target)
-            
+
+            # Update pending orders with new levels
+            order_service = self._get_order_service()
+            updated_orders = await order_service.update_pending_orders_on_position_update(pos)
+
             # Notify observers about position updated
             changes = {}
             if stoploss is not None:
                 changes["stoploss"] = stoploss
             if target is not None:
                 changes["target"] = target
-                
+
             notification_service = self._get_notification_service()
             await notification_service.notify("position_updated", {
                 "account_id": account.account_id,
                 "position": pos,
-                "changes": changes
+                "changes": changes,
+                "updated_orders": [order.model_dump() for order in updated_orders]
             })
-            
-            return TBResponse(message="Position levels updated", data={"position": pos.model_dump()})
+
+            return TBResponse(message="Position levels updated", data={
+                "position": pos.model_dump(),
+                "updated_orders": [order.model_dump() for order in updated_orders]
+            })
         except Exception as e:
             # Notify observers about error
             try:

@@ -110,6 +110,7 @@
                 <input type="number" step="0.01" name="new_price" placeholder="Price" class="w-20 border rounded px-1 py-1 text-xs" />
                 <button type="submit" class="px-2 py-1 rounded bg-emerald-600 text-white text-xs">Add</button>
               </form>
+              <button onclick="viewOrders('{{ p.position_id }}')" class="px-2 py-1 rounded bg-purple-600 text-white text-xs">Orders</button>
             </div>
           </td>
         </tr>
@@ -148,6 +149,7 @@
           <th class="text-left px-3 py-2">Target</th>
           <th class="text-left px-3 py-2">Opened</th>
           <th class="text-left px-3 py-2">Closed</th>
+          <th class="text-left px-3 py-2">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -171,6 +173,9 @@
           <td class="px-3 py-2">{{ '₹%.2f'|format(p.target) if p.target else '-' }}</td>
           <td class="px-3 py-2 text-xs">{{ p.opened_at|india_time if p.opened_at else '-' }}</td>
           <td class="px-3 py-2 text-xs">{{ p.closed_at|india_time if p.closed_at else '-' }}</td>
+          <td class="px-3 py-2">
+            <button onclick="viewOrders('{{ p.position_id }}')" class="px-2 py-1 rounded bg-purple-600 text-white text-xs">Orders</button>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -180,6 +185,165 @@
   <p class="text-sm text-slate-500">No closed positions.</p>
   {% endif %}
 </div>
+
+<!-- Orders Modal -->
+<div id="ordersModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b">
+      <h3 class="text-lg font-semibold">Position Orders</h3>
+      <button onclick="closeOrdersModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="p-4 overflow-y-auto max-h-[70vh]">
+      <div id="ordersContent">
+        <div class="flex items-center justify-center p-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function viewOrders(positionId) {
+  // Show modal
+  document.getElementById('ordersModal').classList.remove('hidden');
+
+  // Reset content
+  document.getElementById('ordersContent').innerHTML = `
+    <div class="flex items-center justify-center p-8">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    </div>
+  `;
+
+  // Fetch orders for the position
+  fetch('/api/orders/' + positionId, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success && data.data && data.data.orders) {
+      displayOrders(data.data.orders);
+    } else {
+      document.getElementById('ordersContent').innerHTML = `
+        <div class="text-center p-8">
+          <p class="text-slate-500">No orders found for this position.</p>
+        </div>
+      `;
+    }
+  })
+  .catch(error => {
+    console.error('Error fetching orders:', error);
+    document.getElementById('ordersContent').innerHTML = `
+      <div class="text-center p-8">
+        <p class="text-red-500">Error loading orders. Please try again.</p>
+      </div>
+    `;
+  });
+}
+
+function displayOrders(orders) {
+  if (!orders || orders.length === 0) {
+    document.getElementById('ordersContent').innerHTML = `
+      <div class="text-center p-8">
+        <p class="text-slate-500">No orders found for this position.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const tableHtml = `
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="text-left px-3 py-2">Order ID</th>
+            <th class="text-left px-3 py-2">Type</th>
+            <th class="text-left px-3 py-2">Status</th>
+            <th class="text-left px-3 py-2">Symbol</th>
+            <th class="text-left px-3 py-2">Price</th>
+            <th class="text-left px-3 py-2">Quantity</th>
+            <th class="text-left px-3 py-2">Order Time</th>
+            <th class="text-left px-3 py-2">Execution Time</th>
+            <th class="text-left px-3 py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map(order => `
+            <tr class="border-b">
+              <td class="px-3 py-2 text-xs font-mono">${order.id.substring(0, 8)}...</td>
+              <td class="px-3 py-2">
+                <span class="px-2 py-1 rounded text-xs ${getOrderTypeClass(order.order_type)}">
+                  ${order.order_type}
+                </span>
+              </td>
+              <td class="px-3 py-2">
+                <span class="px-2 py-1 rounded text-xs ${getOrderStatusClass(order.status)}">
+                  ${order.status}
+                </span>
+              </td>
+              <td class="px-3 py-2 font-medium">${order.symbol}</td>
+              <td class="px-3 py-2">₹${parseFloat(order.price).toFixed(2)}</td>
+              <td class="px-3 py-2">${parseFloat(order.quantity).toFixed(2)}</td>
+              <td class="px-3 py-2 text-xs">${formatDateTime(order.order_time)}</td>
+              <td class="px-3 py-2 text-xs">${order.execution_time ? formatDateTime(order.execution_time) : '-'}</td>
+              <td class="px-3 py-2 text-xs">${order.notes || '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('ordersContent').innerHTML = tableHtml;
+}
+
+function getOrderTypeClass(orderType) {
+  switch(orderType) {
+    case 'BUY': return 'bg-green-100 text-green-700';
+    case 'SELL': return 'bg-red-100 text-red-700';
+    case 'STOP_LOSS': return 'bg-orange-100 text-orange-700';
+    case 'TARGET': return 'bg-blue-100 text-blue-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+}
+
+function getOrderStatusClass(status) {
+  switch(status) {
+    case 'EXECUTED': return 'bg-green-100 text-green-700';
+    case 'PENDING': return 'bg-yellow-100 text-yellow-700';
+    case 'CANCELLED': return 'bg-red-100 text-red-700';
+    case 'FAILED': return 'bg-red-100 text-red-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+}
+
+function formatDateTime(dateString) {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  } catch (e) {
+    return dateString;
+  }
+}
+
+function closeOrdersModal() {
+  document.getElementById('ordersModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('ordersModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeOrdersModal();
+  }
+});
+</script>
 {% endblock %}
 
 

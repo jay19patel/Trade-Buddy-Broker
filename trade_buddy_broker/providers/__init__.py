@@ -1,4 +1,4 @@
-from .observer import Observer, Subject, NotificationObserver, ErrorObserver, get_caller_info
+from .notification_observer import Observer, Subject, NotificationObserver, ErrorObserver, get_caller_info
 from .notification_provider import (
     NotificationProvider,
     DatabaseNotificationProvider,

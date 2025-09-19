@@ -433,6 +433,30 @@ def create_app() -> Flask:
         except Exception as e:
             return {"error": str(e)}, 500
 
+    @app.get("/api/orders/<position_id>")
+    def api_get_orders(position_id):
+        if not session.get("session_id") or g.account_obj is None:
+            return {"error": "Unauthorized", "success": False}, 401
+        try:
+            resp = run_async(broker.get_orders(g.account_obj, position_id))
+            if resp and resp.data:
+                return {"data": resp.data, "success": True, "message": resp.message}
+            return {"data": {"orders": []}, "success": True, "message": "No orders found"}
+        except Exception as e:
+            return {"error": str(e), "success": False}, 500
+
+    @app.post("/api/orders/<order_id>/execute")
+    def api_execute_order(order_id):
+        if not session.get("session_id") or g.account_obj is None:
+            return {"error": "Unauthorized", "success": False}, 401
+        try:
+            resp = run_async(broker.order_execute(g.account_obj, order_id))
+            if resp and resp.data:
+                return {"data": resp.data, "success": True, "message": resp.message}
+            return {"error": "Failed to execute order", "success": False}, 500
+        except Exception as e:
+            return {"error": str(e), "success": False}, 500
+
     return app
 
 

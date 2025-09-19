@@ -35,6 +35,20 @@ class NotificationStatus(str, Enum):
     SENT = "SENT"
     FAILED = "FAILED"
 
+class OrderType(str, Enum):
+    """Order type enumeration"""
+    BUY = "BUY"
+    SELL = "SELL"
+    STOP_LOSS = "STOP_LOSS"
+    TARGET = "TARGET"
+
+class OrderStatus(str, Enum):
+    """Order status enumeration"""
+    PENDING = "PENDING"
+    EXECUTED = "EXECUTED"
+    CANCELLED = "CANCELLED"
+    FAILED = "FAILED"
+
 class Account(SQLModel, table=True):
     """Account model"""
     __tablename__ = "accounts"
@@ -168,3 +182,19 @@ class Session(SQLModel, table=True):
     ip_address: Optional[str] = None
     is_active: bool = Field(default=True)
     jwt_token: Optional[str] = None
+
+class Order(SQLModel, table=True):
+    """Order model for tracking all trading orders"""
+    __tablename__ = "orders"
+
+    id: str = Field(primary_key=True, default_factory=lambda: str(uuid.uuid4()))
+    position_id: str = Field(foreign_key="positions.position_id")
+    account_id: str = Field(foreign_key="accounts.account_id")
+    symbol: str = ""
+    order_type: OrderType = OrderType.BUY
+    status: OrderStatus = OrderStatus.PENDING
+    price: float = 0.0
+    quantity: float = 0.0
+    order_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    execution_time: Optional[datetime] = None
+    notes: str = ""
