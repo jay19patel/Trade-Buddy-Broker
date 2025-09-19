@@ -32,7 +32,7 @@ class PositionRepository:
         async for session in db.get_session():
             stmt = select(Position).where(
                 Position.account_id == account_id,
-                Position.status == PositionStatus.OPEN.value
+                Position.status == PositionStatus.OPEN
             )
             result = await session.execute(stmt)
             return result.scalars().all()
@@ -42,7 +42,7 @@ class PositionRepository:
         async for session in db.get_session():
             stmt = select(Position).where(
                 Position.account_id == account_id,
-                Position.status == PositionStatus.CLOSED.value
+                Position.status == PositionStatus.CLOSED
             )
             result = await session.execute(stmt)
             return result.scalars().all()
@@ -74,7 +74,7 @@ class PositionRepository:
                 update(Position)
                 .where(Position.position_id == position_id)
                 .values(
-                    status=PositionStatus.CLOSED.value,
+                    status=PositionStatus.CLOSED,
                     exit_price=exit_price,
                     pnl=pnl,
                     pnl_percentage=pnl_percentage,

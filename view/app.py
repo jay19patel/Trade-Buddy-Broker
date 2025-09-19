@@ -30,7 +30,7 @@ def create_app() -> Flask:
     
     def _calculate_growth_percentage(acc, session):
         try:
-            balance = getattr(acc, "balance", 0.0)
+            balance = acc.balance or 0.0
             base_balance = float(session.get("base_balance") or 0.0)
             if base_balance > 0:
                 return ((balance - base_balance) / base_balance) * 100.0
@@ -56,7 +56,7 @@ def create_app() -> Flask:
                 g.account_obj = account
                 # capture baseline balance at first login to compute growth
                 if session.get("base_balance") is None:
-                    session["base_balance"] = getattr(account, "balance", 0.0)
+                    session["base_balance"] = account.balance or 0.0
             except Exception:
                 g.account_obj = None
 
@@ -65,14 +65,14 @@ def create_app() -> Flask:
         is_in = bool(session.get("session_id"))
         name = session.get("full_name")
         stats = None
-        if is_in and getattr(g, "account_obj", None) is not None:
+        if is_in and hasattr(g, "account_obj") and g.account_obj is not None:
             acc = g.account_obj
             stats = {
-                "balance": getattr(acc, "balance", 0.0),
-                "total_margin": getattr(acc, "total_margin", 0.0),
-                "utilized_margin": getattr(acc, "utilized_margin", 0.0),
-                "available_margin": getattr(acc, "available_margin", 0.0),
-                "margin_percentage": getattr(acc, "margin_percentage", 0.0),
+                "balance": acc.balance or 0.0,
+                "total_margin": acc.total_margin or 0.0,
+                "utilized_margin": acc.utilized_margin or 0.0,
+                "available_margin": acc.available_margin or 0.0,
+                "margin_percentage": acc.margin_percentage or 0.0,
             }
             base_balance = session.get("base_balance") or 0.0
             growth_pct = 0.0
@@ -117,13 +117,13 @@ def create_app() -> Flask:
         if g.account_obj:
             acc = g.account_obj
             summary = {
-                "full_name": getattr(acc, "full_name", ""),
-                "email_id": getattr(acc, "email_id", ""),
-                "balance": getattr(acc, "balance", 0.0),
-                "available_margin": getattr(acc, "available_margin", 0.0),
-                "utilized_margin": getattr(acc, "utilized_margin", 0.0),
-                "margin_percentage": getattr(acc, "margin_percentage", 0.0),
-                "default_leverage": getattr(acc, "default_leverage", 1.0),
+                "full_name": acc.full_name or "",
+                "email_id": acc.email_id or "",
+                "balance": acc.balance or 0.0,
+                "available_margin": acc.available_margin or 0.0,
+                "utilized_margin": acc.utilized_margin or 0.0,
+                "margin_percentage": acc.margin_percentage or 0.0,
+                "default_leverage": acc.default_leverage or 1.0,
                 "growth_percentage": _calculate_growth_percentage(acc, session),
             }
         return render_template("home.html", summary=summary)
@@ -349,7 +349,7 @@ def create_app() -> Flask:
                 flash(str(e), "error")
         # current settings
         settings = {
-            "default_leverage": getattr(g.account_obj, "default_leverage", 1.0),
+            "default_leverage": g.account_obj.default_leverage or 1.0,
         }
         return render_template("settings.html", settings=settings)
 
@@ -361,7 +361,7 @@ def create_app() -> Flask:
             resp = run_async(broker.get_notifications(g.account_obj, 50))
             items = (resp.data or {}).get("notifications") if resp else []
             # Hide already read (status == 'SENT') from default list
-            items = [n for n in items if getattr(n, 'status', None) != 'SENT']
+            items = [n for n in items if n.status != 'SENT']
         except Exception:
             items = []
         return render_template("notifications.html", notifications=items)

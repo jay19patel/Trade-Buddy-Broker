@@ -41,13 +41,13 @@ class TransactionService:
             if transaction_type == TransactionType.DEPOSIT:
                 account.balance += data.amount
                 # Update available margin after deposit
-                utilized_margin = getattr(account, "utilized_margin", 0.0)
+                utilized_margin = account.utilized_margin or 0.0
                 account.available_margin = max(account.balance - utilized_margin, 0.0)
                 account.margin_percentage = (utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             else:
                 account.balance -= data.amount
                 # Update available margin after withdrawal
-                utilized_margin = getattr(account, "utilized_margin", 0.0)
+                utilized_margin = account.utilized_margin or 0.0
                 account.available_margin = max(account.balance - utilized_margin, 0.0)
                 account.margin_percentage = (utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             

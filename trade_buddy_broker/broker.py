@@ -336,18 +336,18 @@ class TradeBuddy:
             pass
         
         # Ensure margin stats are properly calculated
-        utilized_margin = getattr(account, "utilized_margin", 0.0)
-        balance = getattr(account, "balance", 0.0)
+        utilized_margin = account.utilized_margin or 0.0
+        balance = account.balance or 0.0
         available_margin = max(balance - utilized_margin, 0.0)
         margin_percentage = (utilized_margin / balance * 100) if balance > 0 else 0.0
         
         account_payload = account.model_dump_safe()
         account_payload.update({
-            "total_margin": max(getattr(account, "total_margin", 0.0), utilized_margin),
+            "total_margin": max(account.total_margin or 0.0, utilized_margin),
             "utilized_margin": utilized_margin,
             "available_margin": available_margin,
             "margin_percentage": margin_percentage,
-            "default_leverage": getattr(account, "default_leverage", 1.0),
+            "default_leverage": account.default_leverage or 1.0,
         })
         account_data = AccountData(**account_payload)
         return TBResponse(
@@ -424,7 +424,7 @@ class TradeBuddy:
                 # Create exit order
                 exit_order = await order_service.create_exit_order(pos, exit_price, close_quantity)
                 # Cancel pending orders if position is fully closed
-                if getattr(pos, "status", None) == "CLOSED":
+                if pos.status == "CLOSED":
                     await order_service.cancel_pending_orders(position_id)
 
             # Auto-execute the exit order
@@ -432,7 +432,7 @@ class TradeBuddy:
 
             # Notify observers about position closed/partial
             notification_service = self._get_notification_service()
-            event_name = "position_closed" if getattr(pos, "status", None) == "CLOSED" else "position_trailed"
+            event_name = "position_closed" if pos.status == "CLOSED" else "position_trailed"
             payload = {
                 "account_id": account.account_id,
                 "position": pos,

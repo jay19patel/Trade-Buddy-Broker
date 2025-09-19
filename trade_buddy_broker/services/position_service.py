@@ -4,7 +4,7 @@ Async DB-backed Position service
 
 from typing import List, Optional
 
-from trade_buddy_broker.entities.models import Account, Position, PositionStatus
+from trade_buddy_broker.entities.models import Account, Position, PositionStatus,PositionType
 from trade_buddy_broker.repositories.position_repository import PositionRepository
 from trade_buddy_broker.utils.security import SecurityManager
 
@@ -24,7 +24,7 @@ class PositionService:
         stoploss: Optional[float] = None,
         target: Optional[float] = None,
     ) -> Position:
-        leverage = getattr(account, "default_leverage", 1.0) or 1.0
+        leverage = account.default_leverage or 1.0
         if leverage <= 0:
             leverage = 1.0
         
@@ -32,7 +32,7 @@ class PositionService:
         margin_required = invested_amount / leverage
         
         # Check available margin
-        available_margin = getattr(account, "available_margin", account.balance)
+        available_margin = account.available_margin or account.balance
         if available_margin < margin_required:
             raise ValueError(f"Insufficient funds. Required margin: ₹{margin_required:.2f}, Available: ₹{available_margin:.2f}")
         
@@ -42,8 +42,8 @@ class PositionService:
             acc_repo = AccountRepository()
             
             # Update margin calculations
-            account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + margin_required
-            account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
+            account.utilized_margin = (account.utilized_margin or 0.0) + margin_required
+            account.total_margin = max(account.total_margin or 0.0, account.utilized_margin)
             account.available_margin = max(account.balance - account.utilized_margin, 0.0)
             account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             
@@ -58,8 +58,8 @@ class PositionService:
             side=side.upper(),
             remaining_quantity=remaining_quantity,
             avg_price=price,
-            status=PositionStatus.OPEN.value,
-            position_type=("LONG" if side.upper()=="BUY" else "SHORT"),
+            status=PositionStatus.OPEN,
+            position_type=(PositionType.LONG if side.upper()=="BUY" else PositionType.SHORT),
             invested_amount=invested_amount,
             leverage=leverage,
             margin_used=margin_required,
@@ -88,7 +88,7 @@ class PositionService:
         position = await self.repo.get_by_id(position_id)
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
-        if position.status != PositionStatus.OPEN.value:
+        if position.status != PositionStatus.OPEN:
             raise ValueError("Position is already closed")
         
         # Calculate PnL
@@ -108,8 +108,8 @@ class PositionService:
             from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
             # Add PnL to balance and release margin
-            account.balance = (getattr(account, "balance", 0.0) or 0.0) + pnl
-            account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - position_margin, 0.0)
+            account.balance = (account.balance or 0.0) + pnl
+            account.utilized_margin = max((account.utilized_margin or 0.0) - position_margin, 0.0)
             account.available_margin = max(account.balance - account.utilized_margin, 0.0)
             account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             await acc_repo.update(account)
@@ -130,7 +130,7 @@ class PositionService:
         position = await self.repo.get_by_id(position_id)
         if not position or position.account_id != account.account_id:
             raise ValueError("Position not found")
-        if position.status != PositionStatus.OPEN.value:
+        if position.status != PositionStatus.OPEN:
             raise ValueError("Cannot add to closed position")
         
         # Calculate additional investment and margin required
@@ -139,7 +139,7 @@ class PositionService:
         additional_margin = add_investment / position_leverage
         
         # Check available margin
-        available_margin = getattr(account, "available_margin", 0.0)
+        available_margin = account.available_margin or 0.0
         if available_margin < additional_margin:
             raise ValueError(f"Insufficient funds for pyramiding. Required margin: ₹{additional_margin:.2f}, Available: ₹{available_margin:.2f}")
         
@@ -157,8 +157,8 @@ class PositionService:
         try:
             from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
-            account.utilized_margin = (getattr(account, "utilized_margin", 0.0) or 0.0) + additional_margin
-            account.total_margin = max(getattr(account, "total_margin", 0.0) or 0.0, account.utilized_margin)
+            account.utilized_margin = (account.utilized_margin or 0.0) + additional_margin
+            account.total_margin = max(account.total_margin or 0.0, account.utilized_margin)
             account.available_margin = max(account.balance - account.utilized_margin, 0.0)
             account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             await acc_repo.update(account)
@@ -166,7 +166,7 @@ class PositionService:
             raise ValueError(f"Failed to update account margins: {str(e)}")
 
         # Persist position changes
-        new_position_margin_used = (getattr(position, "margin_used", 0.0) or 0.0) + additional_margin
+        new_position_margin_used = (position.margin_used or 0.0) + additional_margin
 
         position_values = {
             "remaining_quantity": new_total_quantity,
@@ -227,7 +227,7 @@ class PositionService:
         try:
             from trade_buddy_broker.repositories.account_repository import AccountRepository
             acc_repo = AccountRepository()
-            account.utilized_margin = max((getattr(account, "utilized_margin", 0.0) or 0.0) - released_margin, 0.0)
+            account.utilized_margin = max((account.utilized_margin or 0.0) - released_margin, 0.0)
             account.available_margin = max(account.balance - account.utilized_margin, 0.0)
             account.margin_percentage = (account.utilized_margin / account.balance * 100) if account.balance > 0 else 0.0
             await acc_repo.update(account)
