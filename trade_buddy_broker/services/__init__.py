@@ -1,11 +1,9 @@
-"""
-Service layer for Trade Buddy SDK
-"""
-
-from .auth_service import AuthService
-from .transaction_service import TransactionService
+from .orders_service import OrdersService
+from .positions_service import PositionsService
+from .ticker_service import TickerService
 
 __all__ = [
-    "AuthService",
-    "TransactionService"
+    "OrdersService",
+    "PositionsService",
+    "TickerService",
 ]
