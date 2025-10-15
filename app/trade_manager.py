@@ -7,8 +7,8 @@ getcontext().prec = 28
 
 # ✅ Input model (with trade side)
 class TradeSetupInput(BaseModel):
-    capital: float = Field(..., description="Total trading capital in USD")
-    entry_price: float = Field(..., description="Current market price of the symbol (e.g., BTC/USD)")
+    capital: float = Field(..., description="Total trading capital in USD",ge=0)
+    entry_price: float = Field(..., description="Current market price of the symbol (e.g., BTC/USD)",ge=0)
     side: str = Field(..., description="Trade direction: 'buy' for long or 'sell' for short")
 
     @field_validator("side")
@@ -19,22 +19,7 @@ class TradeSetupInput(BaseModel):
         return v
 
 
-# ✅ Response model
-class TradeManagerResponse(BaseModel):
-    capital_usd: float
-    entry_price: float
-    side: str
-    margin_used_usd: float
-    position_size_usd: float
-    quantity: float
-    risk_amount_usd: float
-    stop_distance_usd: float
-    stop_loss_price: float
-    target_price: float
-    reward_ratio: float
-    approx_liquidation_price: float
-    liquidation_warning_price: float
-    leverage: float
+# ✅ Simple response - no model needed
 
 
 # ✅ Core calculation function
@@ -95,31 +80,31 @@ def calculate_trade_setup(data: TradeSetupInput) -> dict:
             entry_price + ((liquidation_price - entry_price) * (Decimal("1") - LIQUIDATION_WARNING_BUFFER))
         ).quantize(Decimal("0.01"))
 
-    # ✅ Return as a plain dictionary
-    return TradeManagerResponse(
-        capital_usd=float(capital),
-        entry_price=float(entry_price),
-        side=side,
-        margin_used_usd=float(margin_used_usd),
-        position_size_usd=float(position_size_usd),
-        quantity=float(quantity),
-        risk_amount_usd=float(risk_amount_usd),
-        stop_distance_usd=float(stop_distance_usd),
-        stop_loss_price=float(stop_loss_price),
-        target_price=float(target_price),
-        reward_ratio=float(reward_ratio),
-        approx_liquidation_price=float(liquidation_price),
-        liquidation_warning_price=float(liquidation_warning_price),
-        leverage=float(leverage),
-    ).model_dump()
+    # ✅ Return as a simple dictionary
+    return {
+        "capital_usd": float(capital),
+        "entry_price": float(entry_price),
+        "side": side,
+        "margin_used_usd": float(margin_used_usd),
+        "position_size_usd": float(position_size_usd),
+        "quantity": float(quantity),
+        "risk_amount_usd": float(risk_amount_usd),
+        "stop_distance_usd": float(stop_distance_usd),
+        "stop_loss_price": float(stop_loss_price),
+        "target_price": float(target_price),
+        "reward_ratio": float(reward_ratio),
+        "approx_liquidation_price": float(liquidation_price),
+        "liquidation_warning_price": float(liquidation_warning_price),
+        "leverage": float(leverage),
+    }
 
 
 # ✅ Example run
 if __name__ == "__main__":
     print("\n📈 BUY Example:")
-    buy_data = TradeSetupInput(capital=100, entry_price=20000, side="buy")
+    buy_data = TradeSetupInput(capital=1, entry_price=0.07575162, side="buy")
     print(calculate_trade_setup(buy_data))
 
     print("\n📉 SELL Example:")
-    sell_data = TradeSetupInput(capital=100, entry_price=20000, side="sell")
+    sell_data = TradeSetupInput(capital=1, entry_price=0.07575162, side="sell")
     print(calculate_trade_setup(sell_data))
