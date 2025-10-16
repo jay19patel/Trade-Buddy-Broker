@@ -55,6 +55,25 @@ class DeltaAPI:
             logger.error(f"Error fetching position: {str(e)}")
             raise
 
+    def get_balance(self) -> Dict[str, Any]:
+        """
+        Get account balance for a specific asset.
+        Default asset_id=1 is usually USDT/USD.
+        """
+        try:
+            logger.info(f"Fetching balance")
+            response = self.client.request(method="GET", path="/v2/wallet/balances",auth=True)
+            response = response.json().get("result", [])[0]
+
+            logger.info(f"✅ Balance fetched successfully")
+            return {
+                "available_balance_usd":response.get("available_balance"),
+                "available_balance_inr":response.get("available_balance_inr"),
+            }
+        except Exception as e:
+            logger.error(f"Error fetching balance: {str(e)}")
+            raise
+
     # ---------- Order Management ----------
     def get_live_orders(self) -> List[Dict[str, Any]]:
         try:
@@ -133,10 +152,6 @@ class DeltaAPI:
                 limit_price=str(entry_price),
             )
 
-            print("Entry order response : --------------------------------")
-            print(entry_order)
-            print("Entry order response : --------------------------------")
-
             entry_id = entry_order.get("id")
             logger.info(f"✅ Entry Order Created: {entry_id}")
 
@@ -160,7 +175,7 @@ class DeltaAPI:
         entry_order_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
-        Create stoploss (MARKET stop) and target (LIMIT) on the opposite side.
+        Create stoploss and target as LIMIT orders on the opposite side.
 
         If any leg (stop/target) fails to place, cancel the successfully created
         leg(s). If an entry_order_id is provided, also attempt to cancel the entry.
@@ -169,22 +184,18 @@ class DeltaAPI:
         created_order_ids: List[int] = []
 
         try:
-            # Stop Loss Order (market)
-            stop_order = self.client.place_stop_order(
+            # Stop Loss as LIMIT order (opposite side)
+            stop_order = self.client.place_order(
                 product_id=product_id,
                 size=size,
                 side=opposite_side,
-                stop_price=str(stoploss_price),
-                order_type=DeltaOrderType.MARKET,
-                isTrailingStopLoss=False
+                order_type=DeltaOrderType.LIMIT,
+                limit_price=str(stoploss_price)
             )
-            print("Stop order response : --------------------------------")
-            print(stop_order)
-            print("Stop order response : --------------------------------")
             stop_id = stop_order.get("id")
             if stop_id:
                 created_order_ids.append(stop_id)
-            logger.info(f"✅ Stoploss Order Created: {stop_id}")
+            logger.info(f"✅ Stoploss LIMIT Order Created: {stop_id}")
 
             # Target Order (limit)
             target_order = self.client.place_order(
@@ -194,13 +205,10 @@ class DeltaAPI:
                 order_type=DeltaOrderType.LIMIT,
                 limit_price=str(target_price)
             )
-            print("Target order response : --------------------------------")
-            print(target_order)
-            print("Target order response : --------------------------------")
             target_id = target_order.get("id")
             if target_id:
                 created_order_ids.append(target_id)
-            logger.info(f"✅ Target Order Created: {target_id}")
+            logger.info(f"✅ Target LIMIT Order Created: {target_id}")
 
             return {
                 "success": True,
@@ -278,3 +286,5 @@ class DeltaAPI:
         except Exception as e:
             logger.critical(f"CRITICAL ERROR in Emergency Exit: {str(e)}")
             raise
+
+
