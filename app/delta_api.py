@@ -168,11 +168,9 @@ class DeltaAPI:
     def create_stoploss_target(
         self,
         product_id: int,
-        size: int,
-        side: str,
+        symbol :str,
         stoploss_price: float,
         target_price: float,
-        entry_order_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Create stoploss and target as LIMIT orders on the opposite side.
@@ -180,74 +178,30 @@ class DeltaAPI:
         If any leg (stop/target) fails to place, cancel the successfully created
         leg(s). If an entry_order_id is provided, also attempt to cancel the entry.
         """
-        opposite_side = 'sell' if side.lower() == 'buy' else 'buy'
-        created_order_ids: List[int] = []
-
         try:
-            # Stop Loss as LIMIT order (opposite side)
-            stop_order = self.client.place_order(
-                product_id=product_id,
-                size=size,
-                side=opposite_side,
-                order_type=DeltaOrderType.LIMIT,
-                limit_price=str(stoploss_price)
-            )
-            stop_id = stop_order.get("id")
-            if stop_id:
-                created_order_ids.append(stop_id)
-            logger.info(f"✅ Stoploss LIMIT Order Created: {stop_id}")
 
-            # Target Order (limit)
-            target_order = self.client.place_order(
-                product_id=product_id,
-                size=size,
-                side=opposite_side,
-                order_type=DeltaOrderType.LIMIT,
-                limit_price=str(target_price)
-            )
-            target_id = target_order.get("id")
-            if target_id:
-                created_order_ids.append(target_id)
-            logger.info(f"✅ Target LIMIT Order Created: {target_id}")
-
-            return {
-                "success": True,
-                "stoploss_order_id": stop_id,
-                "target_order_id": target_id,
-                "responses": {
-                    "stoploss": stop_order,
-                    "target": target_order
-                }
+            payload = {
+                    "product_id": product_id,
+                    "product_symbol": symbol,
+                    "stop_loss_order": {
+                        "order_type": "market_order",
+                        "stop_price": str(stoploss_price)
+                    },
+                    "take_profit_order": {
+                        "order_type": "market_order",
+                        "stop_price": str(target_price)
+                    },
+                    "bracket_stop_trigger_method": "last_traded_price"
             }
+                
+            
+            response = self.client.request(method="POST", path="/v2/orders/bracket", payload=payload, auth=True)
+            logger.info(f"✅ Stoploss/Target created successfully : {response.json()}")
+            return response.json()
 
         except Exception as e:
             logger.error(f"❌ Error creating stoploss/target: {str(e)}")
-            # rollback both legs and optionally entry
-            rollback_errors: List[str] = []
-            for oid in created_order_ids:
-                try:
-                    self.cancel_order(product_id, oid)
-                    logger.warning(f"Rolled back order id: {oid}")
-                except Exception as cancel_err:
-                    err_msg = f"Failed to cancel order {oid}: {str(cancel_err)}"
-                    rollback_errors.append(err_msg)
-                    logger.error(err_msg)
-
-            if entry_order_id is not None:
-                try:
-                    self.cancel_order(product_id, entry_order_id)
-                    logger.warning(f"Rolled back entry order id: {entry_order_id}")
-                except Exception as cancel_err:
-                    err_msg = f"Failed to cancel entry order {entry_order_id}: {str(cancel_err)}"
-                    rollback_errors.append(err_msg)
-                    logger.error(err_msg)
-
-            return {
-                "success": False,
-                "error": str(e),
-                "rolled_back": created_order_ids + ([entry_order_id] if entry_order_id is not None else []),
-                "rollback_errors": rollback_errors,
-            }
+            raise
 
     # ---------- Emergency Exit ----------
     def emergency_exit(self, product_id: Optional[int] = None) -> Dict[str, Any]:
