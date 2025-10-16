@@ -1,311 +1,245 @@
 from delta_rest_client import DeltaRestClient
 from delta_rest_client.delta_rest_client import OrderType as DeltaOrderType
 from typing import Dict, Any, Optional, List
+import logging
+from datetime import datetime
+import os
 
 
+# ============ LOGGING SETUP ============
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_file = os.path.join(log_dir, f"delta_api_{datetime.now().strftime('%Y%m%d')}.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+# ============ DELTA API WRAPPER CLASS ============
 class DeltaAPI:
     """
-    Delta Exchange API Wrapper - Simple and Fast
-
-    This class wraps the Delta Rest Client with simple parameter passing
-    for better performance and reduced execution time.
+    Simplified Delta Exchange REST API Wrapper
     """
 
     def __init__(self, base_url: str, api_key: str, api_secret: str):
-        """
-        Initialize Delta API client
-
-        Args:
-            base_url: Base URL for Delta Exchange API
-                - Production-India: https://api.india.delta.exchange
-                - Testnet-India: https://cdn-ind.testnet.deltaex.org
-                - Production-Global: https://api.delta.exchange
-                - Testnet-Global: https://testnet-api.delta.exchange
-            api_key: Your Delta Exchange API key
-            api_secret: Your Delta Exchange API secret
-        """
         self.client = DeltaRestClient(
             base_url=base_url,
             api_key=api_key,
             api_secret=api_secret
         )
+        logger.info("✅ DeltaAPI initialized successfully")
 
-    def _convert_order_type(self, order_type: str) -> DeltaOrderType:
-        """Convert string order type to Delta's OrderType enum"""
-        if order_type.lower() == "market":
-            return DeltaOrderType.MARKET
-        elif order_type.lower() == "limit":
-            return DeltaOrderType.LIMIT
-        else:
-            raise ValueError(f"Unsupported order type: {order_type}")
-
-    # ==================== Market Data Methods ====================
-
-    def get_assets(self) -> Dict[str, Any]:
-        """
-        Get list of assets supported on Delta Exchange
-
-        Returns:
-            Response containing list of assets
-        """
-        return self.client.get_assets()
-
-    def get_product(self, product_id: int) -> Dict[str, Any]:
-        """
-        Get product detail of a specific product
-
-        Args:
-            product_id: ID of the product
-
-        Returns:
-            Product details including settling_asset and other info
-        """
-        return self.client.get_product(product_id)
-
+    # ---------- Market Data ----------
     def get_ticker(self, symbol: str) -> Dict[str, Any]:
-        """
-        Get 24hr ticker data for a symbol
-
-        Args:
-            symbol: Product symbol
-
-        Returns:
-            Ticker data response
-        """
-        return self.client.get_ticker(symbol)
-
-    def get_l2_orderbook(self, product_id: int) -> Dict[str, Any]:
-        """
-        Get level-2 orderbook of the product
-
-        Args:
-            product_id: ID of the product
-
-        Returns:
-            L2 orderbook data
-        """
-        return self.client.get_l2_orderbook(product_id)
-
-    # ==================== Order Methods ====================
-
-    def get_live_orders(self) -> Dict[str, Any]:
-        """
-        Get all open orders (requires authorization)
-
-        Returns:
-            List of open orders
-        """
-        return self.client.get_live_orders()
-
-    def place_order(self, product_id: int, size: int, side: str, order_type: str, 
-                   limit_price: Optional[str] = None, reduce_only: bool = False) -> Dict[str, Any]:
-        """
-        Place a new market or limit order
-
-        Args:
-            product_id: ID of the product
-            size: Order size
-            side: 'buy' or 'sell'
-            order_type: 'limit' or 'market'
-            limit_price: Order price (required for limit orders)
-            reduce_only: Reduce only order
-
-        Returns:
-            Order response with order details
-        """
-        # For regular orders, we need to use place_stop_order but without stop-specific parameters
-        kwargs = {
-            'product_id': product_id,
-            'size': size,
-            'side': side.lower(),
-            'order_type': self._convert_order_type(order_type),
-        }
-        
-        if limit_price:
-            kwargs['limit_price'] = limit_price
-            
-        if reduce_only:
-            kwargs['reduce_only'] = str(reduce_only).lower()
-            
-        # The API requires stop_price even for regular orders, so we provide a dummy value
-        # that won't trigger (very far from current price)
-        if side.lower() == 'buy':
-            kwargs['stop_price'] = '1000000'  # Very high price that won't trigger
-        else:
-            kwargs['stop_price'] = '1'  # Very low price that won't trigger
-            
-        return self.client.place_stop_order(**kwargs)
-
-    def place_stop_order(self, product_id: int, size: float, side: str, order_type: str,
-                        stop_price: Optional[str] = None, trail_amount: Optional[str] = None,
-                        limit_price: Optional[str] = None, is_trailing_stop_loss: bool = False) -> Dict[str, Any]:
-        """
-        Place a stop loss or trailing stop loss order
-
-        Args:
-            product_id: ID of the product
-            size: Order size
-            side: 'buy' or 'sell'
-            order_type: 'limit' or 'market'
-            stop_price: Price at which order will be triggered (for stop loss)
-            trail_amount: Trail price (for trailing stop loss)
-            limit_price: Order price (ignored if market order)
-            is_trailing_stop_loss: True for trailing stop loss, false for regular stop loss
-
-        Returns:
-            Order response with order details
-        """
-        kwargs = {
-            'product_id': product_id,
-            'size': size,
-            'side': side.lower(),
-            'order_type': self._convert_order_type(order_type),
-        }
-
-        if limit_price:
-            kwargs['limit_price'] = limit_price
-
-        if is_trailing_stop_loss:
-            kwargs['trail_amount'] = trail_amount
-            kwargs['isTrailingStopLoss'] = True
-        else:
-            kwargs['stop_price'] = stop_price
-
-        return self.client.place_stop_order(**kwargs)
-
-    def cancel_order(self, product_id: int, order_id: int) -> Dict[str, Any]:
-        """
-        Cancel an open order
-
-        Args:
-            product_id: ID of the product
-            order_id: Order ID to cancel
-
-        Returns:
-            Cancellation response
-        """
-        return self.client.cancel_order(product_id, order_id)
-
-    def batch_create_orders(self, product_id: int, orders: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Create multiple limit orders (max 5)
-
-        Args:
-            product_id: ID of the product
-            orders: List of order dictionaries with keys: size, side, limit_price, order_type
-
-        Returns:
-            Batch create response
-        """
-        formatted_orders = [
-            {
-                'size': order['size'],
-                'side': order['side'].lower(),
-                'limit_price': order['limit_price'],
-                'order_type': self._convert_order_type(order['order_type'])
-            }
-            for order in orders
-        ]
-        return self.client.batch_create(product_id, formatted_orders)
-
-    def batch_cancel_orders(self, product_id: int, order_ids: List[int]) -> Dict[str, Any]:
-        """
-        Cancel multiple open orders (max 5)
-
-        Args:
-            product_id: ID of the product
-            order_ids: List of order IDs to cancel
-
-        Returns:
-            Batch cancel response
-        """
-        orders = [{'order_id': order_id} for order_id in order_ids]
-        return self.client.batch_cancel(product_id, orders)
-
-    def get_order_history(self, query: Dict[str, Any], page_size: int = 100, after: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get order history with pagination
-
-        Args:
-            query: Query filters (e.g., {'product_id': 27})
-            page_size: Number of records per page (max 1000)
-            after: Cursor for next page pagination
-
-        Returns:
-            Order history with pagination metadata
-        """
-        kwargs = {'page_size': page_size}
-        if after:
-            kwargs['after'] = after
-        return self.client.order_history(query, **kwargs)
-
-    def get_fills(self, query: Dict[str, Any], page_size: int = 100, after: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get fill history of your orders with pagination
-
-        Args:
-            query: Query filters (e.g., {'contract_types': 'futures,interest_rate_swaps'})
-            page_size: Number of records per page (max 1000)
-            after: Cursor for next page pagination
-
-        Returns:
-            Fills history with pagination metadata
-        """
-        kwargs = {'page_size': page_size}
-        if after:
-            kwargs['after'] = after
-        return self.client.fills(query, **kwargs)
-
-    # ==================== Position Methods ====================
+        try:
+            logger.info(f"Fetching ticker for symbol: {symbol}")
+            response = self.client.get_ticker(symbol)
+            return response
+        except Exception as e:
+            logger.error(f"Error fetching ticker: {str(e)}")
+            raise
 
     def get_position(self, product_id: int) -> Dict[str, Any]:
+        try:
+            logger.info(f"Fetching position for product: {product_id}")
+            return self.client.get_position(product_id)
+        except Exception as e:
+            logger.error(f"Error fetching position: {str(e)}")
+            raise
+
+    # ---------- Order Management ----------
+    def get_live_orders(self) -> List[Dict[str, Any]]:
+        try:
+            response = self.client.get_live_orders()
+            logger.info(f"Fetched {len(response)} live orders")
+            return response
+        except Exception as e:
+            logger.error(f"Error fetching live orders: {str(e)}")
+            raise
+
+    def cancel_order(self, product_id: int, order_id: int) -> Dict[str, Any]:
+        try:
+            logger.info(f"Cancelling order {order_id} for product {product_id}")
+            response = self.client.cancel_order(product_id, order_id)
+            logger.info(f"Order {order_id} cancelled successfully")
+            return response
+        except Exception as e:
+            logger.error(f"Error cancelling order {order_id}: {str(e)}")
+            raise
+
+    def cancel_all_orders(self, product_id: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            live_orders = self.get_live_orders()
+            if product_id:
+                live_orders = [o for o in live_orders if o["product_id"] == product_id]
+
+            if not live_orders:
+                return {'success': True, 'message': 'No orders to cancel', 'cancelled_count': 0}
+
+            cancelled_orders, failed_orders = [], []
+            for order in live_orders:
+                try:
+                    pid = order['product_id']
+                    oid = order['id']
+                    self.cancel_order(pid, oid)
+                    cancelled_orders.append(oid)
+                except Exception as e:
+                    failed_orders.append({'order_id': oid, 'error': str(e)})
+
+            logger.info(f"Cancelled {len(cancelled_orders)} orders, failed {len(failed_orders)}")
+            return {
+                'success': True,
+                'cancelled_count': len(cancelled_orders),
+                'cancelled_orders': cancelled_orders,
+                'failed_orders': failed_orders
+            }
+        except Exception as e:
+            logger.error(f"Error cancelling all orders: {str(e)}")
+            raise
+
+    # ---------- Bracket Order ----------
+    def create_bracket_order(
+        self,
+        product_id: int,
+        size: int,
+        side: str,
+        entry_price: float,
+        stoploss_price: float,
+        target_price: float,
+        leverage: int
+    ) -> Dict[str, Any]:
         """
-        Get current open position for a product
-
-        Args:
-            product_id: ID of the product
-
-        Returns:
-            Position details
+        Create a bracket order using place_order for all (entry, stoploss, target)
         """
-        return self.client.get_position(product_id)
 
-    def change_position_margin(self, product_id: int, margin: str) -> Dict[str, Any]:
-        """
-        Change margin for an open position by adding or removing margin
+        try:
+            logger.info(f"Creating bracket order for {product_id}, Side: {side}, Size: {size}")
+            logger.info(f"Entry: {entry_price}, SL: {stoploss_price}, Target: {target_price}, Leverage: {leverage}")
 
-        Args:
-            product_id: ID of the product
-            margin: New margin amount
+            # Set leverage
+            self.client.set_leverage(product_id, str(leverage))
+            opposite_side = 'sell' if side.lower() == 'buy' else 'buy'
 
-        Returns:
-            Response with updated position
-        """
-        return self.client.change_position_margin(product_id, margin)
+            created_order_ids = []  # keep track for rollback on failure
 
-    def set_leverage(self, product_id: int, leverage: str) -> Dict[str, Any]:
-        """
-        Change leverage for new orders
+            # 1️⃣ Entry Limit Order
+            entry_order = self.client.place_order(
+                product_id=product_id,
+                size=size,
+                side=side.lower(),
+                order_type=DeltaOrderType.LIMIT,
+                limit_price=str(entry_price),
+            )
+            # client returns parsed result, not nested under 'result'
+            print(f"Entry order response : --------------------------------")
+            print(entry_order)
+            print(f"Entry order response : --------------------------------")
+            entry_id = entry_order.get("id")
+            if entry_id:
+                created_order_ids.append(entry_id)
+            logger.info(f"✅ Entry Order Created: {entry_id}")
 
-        Args:
-            product_id: ID of the product
-            leverage: Leverage value (e.g., '10', '25', '100')
+            # 2️⃣ Stop Loss Order using dedicated API (market stop-loss)
+            stop_order = self.client.place_stop_order(
+                product_id=product_id,
+                size=size,
+                side=opposite_side,
+                stop_price=str(stoploss_price),
+                order_type=DeltaOrderType.MARKET,
+                isTrailingStopLoss=False
+            )
+            print(f"Stop order response : --------------------------------")
+            print(stop_order)
+            print(f"Stop order response : --------------------------------")
+            stop_id = stop_order.get("id")
+            if stop_id:
+                created_order_ids.append(stop_id)
+            logger.info(f"✅ Stoploss Order Created: {stop_id}")
 
-        Returns:
-            Response confirming leverage change
-        """
-        return self.client.set_leverage(product_id, leverage)
+            # 3️⃣ Target Limit Order (reduce-only)
+            target_order = self.client.place_order(
+                product_id=product_id,
+                size=size,
+                side=opposite_side,
+                order_type=DeltaOrderType.LIMIT,
+                limit_price=str(target_price)
+            )
+            print(f"Target order response : --------------------------------")
+            print(target_order)
+            print(f"Target order response : --------------------------------")
+            target_id = target_order.get("id")
+            if target_id:
+                created_order_ids.append(target_id)
+            logger.info(f"✅ Target Order Created: {target_id}")
 
-    # ==================== Wallet Methods ====================
+            return {
+                "success": True,
+                "entry_order_id": entry_id,
+                "stoploss_order_id": stop_id,
+                "target_order_id": target_id,
+                "responses": {
+                    "entry": entry_order,
+                    "stoploss": stop_order,
+                    "target": target_order
+                }
+            }
 
-    def get_balances(self, asset_id: int) -> Dict[str, Any]:
-        """
-        Get user's wallet balance for an asset
+        except Exception as e:
+            logger.error(f"❌ Error creating bracket order: {str(e)}")
+            # Attempt rollback: cancel any orders that were created successfully
+            try:
+                # created_order_ids might be undefined if failure occurred before declaration
+                for oid in locals().get('created_order_ids', []):
+                    try:
+                        self.cancel_order(product_id, oid)
+                        logger.warning(f"Rolled back order id: {oid}")
+                    except Exception as cancel_err:
+                        logger.error(f"Failed to cancel order {oid}: {str(cancel_err)}")
+            finally:
+                raise
 
-        Args:
-            asset_id: ID of the asset
+    # ---------- Emergency Exit ----------
+    def emergency_exit(self, product_id: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            logger.warning(f"🚨 Emergency Exit Initiated for {product_id if product_id else 'ALL'}")
 
-        Returns:
-            Balance information
-        """
-        return self.client.get_balances(asset_id)
+            result = {
+                "success": True,
+                "closed_positions": [],
+                "cancelled_orders": [],
+                "errors": []
+            }
+
+            cancel_result = self.cancel_all_orders(product_id)
+            result["cancelled_orders"] = cancel_result.get("cancelled_orders", [])
+
+            if product_id:
+                try:
+                    position = self.get_position(product_id)
+                    size = abs(position.get("result", {}).get("size", 0))
+                    if size > 0:
+                        side = "sell" if position["result"]["size"] > 0 else "buy"
+                        close = self.client.place_order(
+                            product_id=product_id,
+                            size=size,
+                            side=side,
+                            order_type=DeltaOrderType.MARKET
+                        )
+                        result["closed_positions"].append(close)
+                except Exception as e:
+                    result["errors"].append(str(e))
+
+            logger.warning(f"✅ Emergency Exit Completed")
+            return result
+
+        except Exception as e:
+            logger.critical(f"CRITICAL ERROR in Emergency Exit: {str(e)}")
+            raise

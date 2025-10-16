@@ -48,6 +48,7 @@ from app.config import config
 
 
 from app.delta_api import DeltaAPI
+import time
 
 delta_api = DeltaAPI(
     base_url='https://api.india.delta.exchange',
@@ -55,30 +56,58 @@ delta_api = DeltaAPI(
     api_secret=config.api_secret
 )
 
-# Simple API calls without Pydantic models - Much faster execution!
-print("=== Product ID 174 Details ===")
-product_details = delta_api.get_product(174)
-print(f"Symbol: {product_details.get('symbol', 'N/A')}")
-print(f"Description: {product_details.get('description', 'N/A')}")
+print("\n=== Creating Bracket Order with Auto-Cancel Functionality ===")
 
-print("\n=== Ticker Data ===")
+# Get current price from ticker
 ticker_data = delta_api.get_ticker("VFYUSD")
-print(ticker_data)
+current_price = float(ticker_data.get('mark_price'))
+print(f"Symbol: {ticker_data.get('symbol')}")
+print(f"Current Price: ${current_price}")
+print(f"Mark Price: {ticker_data.get('mark_price')}")
+print("Spot Price:", ticker_data.get('spot_price'))
+print("Turnover Symbol:", ticker_data.get('turnover_symbol'))
+print("Product ID:", ticker_data.get('product_id'))
+
+# Set order side (change this to "buy" or "sell" as needed)
+order_side = "buy"  # Change to "buy" or "sell"
+
+# Calculate entry, stoploss, and target prices based on side
+entry_price = current_price  # Entry at current price
+
+if order_side == "buy":
+    # For BUY: stoploss below entry, target above entry
+    stop_loss_price = current_price * 0.995  # 0.5% below
+    target_price = current_price * 1.01      # 1% above
+    print(f"Order Type: BUY")
+else:  # sell
+    # For SELL: stoploss above entry, target below entry
+    stop_loss_price = current_price * 1.005  # 0.5% above
+    target_price = current_price * 0.99      # 1% below
+    print(f"Order Type: SELL")
+
+print(f"Entry Price: ${entry_price}")
+print(f"Stop Loss: ${stop_loss_price}")
+print(f"Target: ${target_price}")
+
+# Create bracket order
+print("\n=== Placing Bracket Order ===")
+product_id = ticker_data.get('product_id')
+if product_id:
+    bracket_order = delta_api.create_bracket_order(
+        product_id=product_id,
+        size=1,
+        side=order_side,
+        entry_price=entry_price,
+        stoploss_price=stop_loss_price,
+        target_price=target_price,
+        leverage=20
+    )
+    print(f"Bracket order response :")
+    print(bracket_order)
 
 
 
-# from app.delta_schema import GetTickerRequest
-# get_ticker_request = GetTickerRequest(symbol=".DEXBTUSD")
-# ticker = delta_api.get_ticker(get_ticker_request)
-# print(ticker)
+# result = delta_api.emergency_exit()
+# print(f"Emergency exit response :")
+# print(result)
 
-
-# assets = delta_api.get_assets()
-# print(assets)
-# for i in assets:
-#     print(i)
-#     print('------------------\n')
-
-# balance_request = GetBalancesRequest(asset_id=1)
-# balances = delta_api.get_balances(balance_request)
-# print(balances)
