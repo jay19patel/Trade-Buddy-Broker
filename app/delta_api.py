@@ -105,32 +105,26 @@ class DeltaAPI:
             logger.error(f"Error cancelling all orders: {str(e)}")
             raise
 
-    # ---------- Bracket Order ----------
-    def create_bracket_order(
+    # ---------- Entry Only ----------
+    def create_entry(
         self,
         product_id: int,
         size: int,
         side: str,
         entry_price: float,
-        stoploss_price: float,
-        target_price: float,
         leverage: int
     ) -> Dict[str, Any]:
         """
-        Create a bracket order using place_order for all (entry, stoploss, target)
+        Create only the entry order (LIMIT) and set leverage.
+        Returns the placed entry order details and id.
         """
-
         try:
-            logger.info(f"Creating bracket order for {product_id}, Side: {side}, Size: {size}")
-            logger.info(f"Entry: {entry_price}, SL: {stoploss_price}, Target: {target_price}, Leverage: {leverage}")
+            logger.info(f"Creating entry order for {product_id}, Side: {side}, Size: {size}")
+            logger.info(f"Entry: {entry_price}, Leverage: {leverage}")
 
-            # Set leverage
+            # Set leverage for upcoming orders
             self.client.set_leverage(product_id, str(leverage))
-            opposite_side = 'sell' if side.lower() == 'buy' else 'buy'
 
-            created_order_ids = []  # keep track for rollback on failure
-
-            # 1️⃣ Entry Limit Order
             entry_order = self.client.place_order(
                 product_id=product_id,
                 size=size,
@@ -138,16 +132,44 @@ class DeltaAPI:
                 order_type=DeltaOrderType.LIMIT,
                 limit_price=str(entry_price),
             )
-            # client returns parsed result, not nested under 'result'
-            print(f"Entry order response : --------------------------------")
+
+            print("Entry order response : --------------------------------")
             print(entry_order)
-            print(f"Entry order response : --------------------------------")
+            print("Entry order response : --------------------------------")
+
             entry_id = entry_order.get("id")
-            if entry_id:
-                created_order_ids.append(entry_id)
             logger.info(f"✅ Entry Order Created: {entry_id}")
 
-            # 2️⃣ Stop Loss Order using dedicated API (market stop-loss)
+            return {
+                "success": True,
+                "entry_order_id": entry_id,
+                "response": entry_order,
+            }
+        except Exception as e:
+            logger.error(f"❌ Error creating entry order: {str(e)}")
+            raise
+
+    # ---------- Stoploss + Target ----------
+    def create_stoploss_target(
+        self,
+        product_id: int,
+        size: int,
+        side: str,
+        stoploss_price: float,
+        target_price: float,
+        entry_order_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Create stoploss (MARKET stop) and target (LIMIT) on the opposite side.
+
+        If any leg (stop/target) fails to place, cancel the successfully created
+        leg(s). If an entry_order_id is provided, also attempt to cancel the entry.
+        """
+        opposite_side = 'sell' if side.lower() == 'buy' else 'buy'
+        created_order_ids: List[int] = []
+
+        try:
+            # Stop Loss Order (market)
             stop_order = self.client.place_stop_order(
                 product_id=product_id,
                 size=size,
@@ -156,15 +178,15 @@ class DeltaAPI:
                 order_type=DeltaOrderType.MARKET,
                 isTrailingStopLoss=False
             )
-            print(f"Stop order response : --------------------------------")
+            print("Stop order response : --------------------------------")
             print(stop_order)
-            print(f"Stop order response : --------------------------------")
+            print("Stop order response : --------------------------------")
             stop_id = stop_order.get("id")
             if stop_id:
                 created_order_ids.append(stop_id)
             logger.info(f"✅ Stoploss Order Created: {stop_id}")
 
-            # 3️⃣ Target Limit Order (reduce-only)
+            # Target Order (limit)
             target_order = self.client.place_order(
                 product_id=product_id,
                 size=size,
@@ -172,9 +194,9 @@ class DeltaAPI:
                 order_type=DeltaOrderType.LIMIT,
                 limit_price=str(target_price)
             )
-            print(f"Target order response : --------------------------------")
+            print("Target order response : --------------------------------")
             print(target_order)
-            print(f"Target order response : --------------------------------")
+            print("Target order response : --------------------------------")
             target_id = target_order.get("id")
             if target_id:
                 created_order_ids.append(target_id)
@@ -182,29 +204,42 @@ class DeltaAPI:
 
             return {
                 "success": True,
-                "entry_order_id": entry_id,
                 "stoploss_order_id": stop_id,
                 "target_order_id": target_id,
                 "responses": {
-                    "entry": entry_order,
                     "stoploss": stop_order,
                     "target": target_order
                 }
             }
 
         except Exception as e:
-            logger.error(f"❌ Error creating bracket order: {str(e)}")
-            # Attempt rollback: cancel any orders that were created successfully
-            try:
-                # created_order_ids might be undefined if failure occurred before declaration
-                for oid in locals().get('created_order_ids', []):
-                    try:
-                        self.cancel_order(product_id, oid)
-                        logger.warning(f"Rolled back order id: {oid}")
-                    except Exception as cancel_err:
-                        logger.error(f"Failed to cancel order {oid}: {str(cancel_err)}")
-            finally:
-                raise
+            logger.error(f"❌ Error creating stoploss/target: {str(e)}")
+            # rollback both legs and optionally entry
+            rollback_errors: List[str] = []
+            for oid in created_order_ids:
+                try:
+                    self.cancel_order(product_id, oid)
+                    logger.warning(f"Rolled back order id: {oid}")
+                except Exception as cancel_err:
+                    err_msg = f"Failed to cancel order {oid}: {str(cancel_err)}"
+                    rollback_errors.append(err_msg)
+                    logger.error(err_msg)
+
+            if entry_order_id is not None:
+                try:
+                    self.cancel_order(product_id, entry_order_id)
+                    logger.warning(f"Rolled back entry order id: {entry_order_id}")
+                except Exception as cancel_err:
+                    err_msg = f"Failed to cancel entry order {entry_order_id}: {str(cancel_err)}"
+                    rollback_errors.append(err_msg)
+                    logger.error(err_msg)
+
+            return {
+                "success": False,
+                "error": str(e),
+                "rolled_back": created_order_ids + ([entry_order_id] if entry_order_id is not None else []),
+                "rollback_errors": rollback_errors,
+            }
 
     # ---------- Emergency Exit ----------
     def emergency_exit(self, product_id: Optional[int] = None) -> Dict[str, Any]:

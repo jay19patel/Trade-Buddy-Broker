@@ -1,6 +1,6 @@
 # from app.delta_websoket import DeltaWebSocketClient
 from app.config import config
-
+import time
 
 # def order_handle(message: dict) -> None:
 #         print("-----------------[Order]-----------------")
@@ -56,7 +56,7 @@ delta_api = DeltaAPI(
     api_secret=config.api_secret
 )
 
-print("\n=== Creating Bracket Order with Auto-Cancel Functionality ===")
+print("\n=== Creating Entry + Stoploss/Target (with rollback) ===")
 
 # Get current price from ticker
 ticker_data = delta_api.get_ticker("VFYUSD")
@@ -89,25 +89,41 @@ print(f"Entry Price: ${entry_price}")
 print(f"Stop Loss: ${stop_loss_price}")
 print(f"Target: ${target_price}")
 
-# Create bracket order
-print("\n=== Placing Bracket Order ===")
+# Create entry, then stoploss/target
+print("\n=== Placing Entry, Stoploss and Target ===")
 product_id = ticker_data.get('product_id')
 if product_id:
-    bracket_order = delta_api.create_bracket_order(
+    entry_resp = delta_api.create_entry(
         product_id=product_id,
         size=1,
         side=order_side,
         entry_price=entry_price,
-        stoploss_price=stop_loss_price,
-        target_price=target_price,
         leverage=20
     )
-    print(f"Bracket order response :")
-    print(bracket_order)
+    print("Entry order response:")
+    print(entry_resp)
 
 
 
-# result = delta_api.emergency_exit()
-# print(f"Emergency exit response :")
-# print(result)
+    time.sleep(3)
+
+    entry_id = entry_resp.get('entry_order_id')
+    st_resp = delta_api.create_stoploss_target(
+        product_id=product_id,
+        size=1,
+        side=order_side,
+        stoploss_price=stop_loss_price,
+        target_price=target_price,
+        entry_order_id=entry_id
+    )
+    print("Stoploss/Target response:")
+    print(st_resp)
+
+
+
+    time.sleep(10)
+
+result = delta_api.emergency_exit()
+print(f"Emergency exit response :")
+print(result)
 
