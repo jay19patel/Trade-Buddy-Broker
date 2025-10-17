@@ -408,6 +408,85 @@ class DeltaAPI:
         except Exception as e:
             raise OrderPlacementError(f"Failed to create bracket order: {str(e)}") from e
 
+    @handle_api_errors
+    def edit_stoploss_target(
+        self,
+        order_id: int,
+        product_id: int,
+        symbol: str,
+        stoploss_price: Optional[float] = None,
+        target_price: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Edit existing bracket order (stoploss + target) with validation"""
+        logger.info(f"📞 edit_stoploss_target() called with params: order_id={order_id}, product_id={product_id}, symbol={symbol}, stoploss_price={stoploss_price}, target_price={target_price}")
+
+        # Input validation
+        if not all([order_id, product_id, symbol]):
+            raise ValueError("order_id, product_id, and symbol are required")
+
+        if stoploss_price is not None and stoploss_price <= 0:
+            raise ValueError(f"Stoploss price must be positive, got {stoploss_price}")
+
+        if target_price is not None and target_price <= 0:
+            raise ValueError(f"Target price must be positive, got {target_price}")
+
+        # Build payload with only provided fields
+        payload = {
+            "id": order_id,
+            "product_id": product_id,
+            "product_symbol": symbol,
+            "bracket_stop_trigger_method": "last_traded_price"
+        }
+
+        if stoploss_price is not None:
+            payload["bracket_stop_loss_price"] = str(stoploss_price)
+
+        if target_price is not None:
+            payload["bracket_take_profit_price"] = str(target_price)
+
+        try:
+            response = self.client.request(
+                method="PUT",
+                path="/v2/orders/bracket",
+                payload=payload,
+                auth=True
+            )
+
+            result = response.json()
+
+            if not result or "result" not in result:
+                raise OrderPlacementError("Bracket order edit request sent but no confirmation received")
+
+            # Extract edited bracket order data
+            edited_order = result.get("result", {})
+
+            # Prepare structured return data
+            return_data = {
+                "success": result.get("success", True),
+                "edited_bracket_order": {
+                    "id": edited_order.get("id"),
+                    "product_id": edited_order.get("product_id"),
+                    "product_symbol": edited_order.get("product_symbol"),
+                    "bracket_stop_loss_limit_price": edited_order.get("bracket_stop_loss_limit_price"),
+                    "bracket_stop_loss_price": edited_order.get("bracket_stop_loss_price"),
+                    "bracket_take_profit_limit_price": edited_order.get("bracket_take_profit_limit_price"),
+                    "bracket_take_profit_price": edited_order.get("bracket_take_profit_price"),
+                    "bracket_trail_amount": edited_order.get("bracket_trail_amount"),
+                    "bracket_stop_trigger_method": edited_order.get("bracket_stop_trigger_method"),
+                    "size": edited_order.get("size"),
+                    "side": edited_order.get("side"),
+                    "order_type": edited_order.get("order_type"),
+                    "state": edited_order.get("state"),
+                    "created_at": edited_order.get("created_at"),
+                }
+            }
+
+            logger.info(f"✏️ edit_stoploss_target() Response: {return_data}")
+            return return_data
+
+        except Exception as e:
+            raise OrderPlacementError(f"Failed to edit bracket order: {str(e)}") from e
+
     # ---------- Emergency Exit ----------
     def emergency_exit(self) -> Dict[str, Any]:
         """
