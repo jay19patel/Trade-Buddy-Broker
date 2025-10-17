@@ -12,15 +12,28 @@ log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
 
 log_file = os.path.join(log_dir, f"delta_api_{datetime.now().strftime('%Y%m%d')}.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Clear any existing handlers to avoid duplicates
+logger.handlers = []
+
+# File handler
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Formatter with file and function name
+formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add handlers
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 # ============ CUSTOM EXCEPTIONS ============
@@ -75,7 +88,7 @@ class DeltaAPI:
                 api_secret=api_secret
             )
             self.client_id = client_id
-            logger.info("✅ DeltaAPI initialized successfully")
+            logger.info("DeltaAPI initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize DeltaAPI: {str(e)}")
             raise DeltaAPIError(f"Initialization failed: {str(e)}") from e
@@ -87,19 +100,19 @@ class DeltaAPI:
         if not symbol:
             raise ValueError("Symbol is required")
 
-        logger.info(f"📞 get_ticker() called with params: symbol={symbol}")
+        logger.info(f"Called with params: symbol={symbol}")
         response = self.client.get_ticker(symbol)
 
         if not response:
             raise DeltaAPIError(f"No ticker data received for {symbol}")
 
-        logger.info(f"📈 get_ticker() Response: {response}")
+        logger.info(f"Response: {response}")
         return response
 
     @handle_api_errors
     def get_all_open_positions(self) -> List[Dict[str, Any]]:
         """Fetch all open margined positions with essential fields only"""
-        logger.info(f"📞 get_all_open_positions() called")
+        logger.info("Getting all open positions")
         response = self.client.request(method="GET", path="/v2/positions/margined", auth=True)
         data = response.json()
 
@@ -127,13 +140,29 @@ class DeltaAPI:
             for pos in positions
         ]
 
-        logger.info(f"📊 get_all_open_positions() Response: {cleaned}")
+        logger.info(f"All open positions: {cleaned}")
         return cleaned
+
+    @handle_api_errors
+    def is_already_in_position_or_order(self, symbol: str) -> bool:
+        logger.info(f"Called with params: symbol={symbol}")
+        positions = self.get_all_open_positions()
+        for position in positions:
+            if position.get('symbol') == symbol:
+                logger.info(f"Position found for {symbol}")
+                return True
+        orders = self.get_all_open_orders()
+        for order in orders:
+            if order.get('product_symbol') == symbol:
+                logger.info(f"Order found for {symbol}")
+                return True
+        logger.info(f"No order found for {symbol}")
+        return False
 
     @handle_api_errors
     def get_balance(self) -> Dict[str, Any]:
         """Get account balance with proper validation"""
-        logger.info(f"📞 get_balance() called")
+        logger.info("Called")
 
         response = self.client.request(method="GET", path="/v2/wallet/balances", auth=True)
         data = response.json()
@@ -148,14 +177,14 @@ class DeltaAPI:
             "available_balance_inr": balance.get("available_balance_inr", 0),
         }
 
-        logger.info(f"💰 get_balance() Response: {result}")
+        logger.info(f"Response: {result}")
         return result
 
     # ---------- Order Management ----------
     @handle_api_errors
     def get_all_open_orders(self) -> List[Dict[str, Any]]:
         """Fetch all live orders with essential fields only"""
-        logger.info(f"📞 get_all_open_orders() called")
+        logger.info("Called")
         response = self.client.get_live_orders()
         orders = response if isinstance(response, list) else []
 
@@ -180,7 +209,7 @@ class DeltaAPI:
             for order in orders
         ]
 
-        logger.info(f"📋 get_all_open_orders() Response: {cleaned_orders}")
+        logger.info(f"Response: {cleaned_orders}")
         return cleaned_orders
 
     @handle_api_errors
@@ -189,15 +218,15 @@ class DeltaAPI:
         if not product_id or not order_id:
             raise ValueError("product_id and order_id are required")
 
-        logger.info(f"📞 cancel_order() called with params: product_id={product_id}, order_id={order_id}")
+        logger.info(f"Called with params: product_id={product_id}, order_id={order_id}")
         response = self.client.cancel_order(product_id, order_id)
-        logger.info(f"❌ cancel_order() Response: {response}")
+        logger.info(f"Response: {response}")
         return response
 
     @handle_api_errors
     def cancel_all_orders(self, product_id: Optional[int] = None) -> Dict[str, Any]:
         """Cancel all orders with detailed reporting"""
-        logger.info(f"📞 cancel_all_orders() called with params: product_id={product_id}")
+        logger.info(f"Called with params: product_id={product_id}")
         live_orders = self.get_all_open_orders()
 
         # Filter by product_id if specified
@@ -214,7 +243,7 @@ class DeltaAPI:
                 'cancelled_orders': [],
                 'failed_orders': []
             }
-            logger.info(f"🚫 cancel_all_orders() Response: {result}")
+            logger.info(f"Response: {result}")
             return result
 
         cancelled_orders, failed_orders = [], []
@@ -242,7 +271,7 @@ class DeltaAPI:
             'failed_orders': failed_orders
         }
 
-        logger.info(f"🗑️ cancel_all_orders() Response: {result}")
+        logger.info(f"Response: {result}")
         return result
 
     # ---------- Entry Order Management ----------
@@ -256,7 +285,7 @@ class DeltaAPI:
         leverage: int
     ) -> Dict[str, Any]:
         """Create entry order with comprehensive validation and error handling"""
-        logger.info(f"📞 create_entry() called with params: product_id={product_id}, size={size}, side={side}, entry_price={entry_price}, leverage={leverage}")
+        logger.info(f"Called with params: product_id={product_id}, size={size}, side={side}, entry_price={entry_price}, leverage={leverage}")
 
         # Input validation
         if not all([product_id, size, side, entry_price, leverage]):
@@ -277,7 +306,7 @@ class DeltaAPI:
         try:
             # Set leverage first
             self.client.set_leverage(product_id, str(leverage))
-            logger.info(f"✅ Leverage set to {leverage}x")
+            logger.info(f"Leverage set to {leverage}x")
         except Exception as e:
             raise OrderPlacementError(f"Failed to set leverage: {str(e)}") from e
 
@@ -314,7 +343,7 @@ class DeltaAPI:
                 }
             }
 
-            logger.info(f"📝 create_entry() Response: {result_data}")
+            logger.info(f"Response: {result_data}")
             return result_data
         except Exception as e:
             raise OrderPlacementError(f"Failed to create entry order: {str(e)}") from e
@@ -329,7 +358,7 @@ class DeltaAPI:
         target_price: float,
     ) -> Dict[str, Any]:
         """Create bracket order (stoploss + target) with validation"""
-        logger.info(f"📞 create_stoploss_target() called with params: product_id={product_id}, symbol={symbol}, stoploss_price={stoploss_price}, target_price={target_price}")
+        logger.info(f"Called with params: product_id={product_id}, symbol={symbol}, stoploss_price={stoploss_price}, target_price={target_price}")
 
         # Input validation
         if not all([product_id, symbol, stoploss_price, target_price]):
@@ -402,7 +431,7 @@ class DeltaAPI:
                 }
             }
 
-            logger.info(f"🎯 create_stoploss_target() Response: {return_data}")
+            logger.info(f"Response: {return_data}")
             return return_data
 
         except Exception as e:
@@ -418,7 +447,7 @@ class DeltaAPI:
         target_price: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Edit existing bracket order (stoploss + target) with validation"""
-        logger.info(f"📞 edit_stoploss_target() called with params: order_id={order_id}, product_id={product_id}, symbol={symbol}, stoploss_price={stoploss_price}, target_price={target_price}")
+        logger.info(f"Called with params: order_id={order_id}, product_id={product_id}, symbol={symbol}, stoploss_price={stoploss_price}, target_price={target_price}")
 
         # Input validation
         if not all([order_id, product_id, symbol]):
@@ -481,7 +510,7 @@ class DeltaAPI:
                 }
             }
 
-            logger.info(f"✏️ edit_stoploss_target() Response: {return_data}")
+            logger.info(f"Response: {return_data}")
             return return_data
 
         except Exception as e:
@@ -496,8 +525,8 @@ class DeltaAPI:
         maximum detail about partial failures during emergency situations.
         """
         user_id = self.client_id
-        logger.warning("🚨 EMERGENCY EXIT INITIATED")
-        logger.info(f"📞 emergency_exit() called")
+        logger.warning("EMERGENCY EXIT INITIATED")
+        logger.info("Called")
 
         result = {
             "success": False,
@@ -514,7 +543,7 @@ class DeltaAPI:
             if cancel_result.get("failed_orders"):
                 result["errors"].append(f"{len(cancel_result['failed_orders'])} orders failed to cancel")
 
-            logger.info(f"✅ Cancelled {result['orders_cancelled']} orders")
+            logger.info(f"Cancelled {result['orders_cancelled']} orders")
         except Exception as e:
             error_msg = f"Failed to cancel orders: {str(e)}"
             logger.error(error_msg)
@@ -539,7 +568,7 @@ class DeltaAPI:
             )
 
             result["positions_closed"] = True
-            logger.info("✅ All positions closed")
+            logger.info("All positions closed")
 
         except Exception as e:
             error_msg = f"Failed to close positions: {str(e)}"
@@ -550,11 +579,11 @@ class DeltaAPI:
         result["success"] = result["positions_closed"] and len(result["errors"]) == 0
 
         if result["success"]:
-            logger.warning("✅ EMERGENCY EXIT COMPLETED SUCCESSFULLY")
+            logger.warning("EMERGENCY EXIT COMPLETED SUCCESSFULLY")
         else:
-            logger.critical(f"⚠️ EMERGENCY EXIT COMPLETED WITH ERRORS: {result['errors']}")
+            logger.critical(f"EMERGENCY EXIT COMPLETED WITH ERRORS: {result['errors']}")
 
-        logger.info(f"🚨 emergency_exit() Response: {result}")
+        logger.info(f"Response: {result}")
         return result
 
 

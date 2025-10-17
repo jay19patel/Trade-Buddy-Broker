@@ -4,6 +4,38 @@ import hmac
 import hashlib
 from typing import Callable, Dict, List, Optional
 import websocket
+import logging
+import os
+from datetime import datetime
+
+
+# ============ LOGGING SETUP ============
+log_dir = "logs"
+os.makedirs(log_dir, exist_ok=True)
+
+log_file = os.path.join(log_dir, f"delta_websocket_{datetime.now().strftime('%Y%m%d')}.log")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Clear any existing handlers to avoid duplicates
+logger.handlers = []
+
+# File handler
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Formatter with file and function name
+formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add handlers
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 class DeltaWebSocketClient:
@@ -44,20 +76,21 @@ class DeltaWebSocketClient:
 
     # --------------------------- Event Handlers --------------------------- #
     def _on_open(self, ws: websocket.WebSocketApp) -> None:
-        print("Socket opened")
+        logger.info("Socket opened")
         self._send_authentication(ws)
 
     def _on_error(self, ws: websocket.WebSocketApp, error) -> None:
-        print(f"Socket Error: {error}")
+        logger.error(f"Socket Error: {error}")
 
     def _on_close(self, ws: websocket.WebSocketApp, close_status_code, close_msg) -> None:
-        print(f"Socket closed with status: {close_status_code} and message: {close_msg}")
+        logger.info(f"Socket closed with status: {close_status_code} and message: {close_msg}")
 
     def _on_message(self, ws: websocket.WebSocketApp, message: str) -> None:
         try:
             msg = json.loads(message)
+            logger.info(f"Received message: {msg}")
         except json.JSONDecodeError:
-            print(f"Received non-JSON message: {message}")
+            logger.error(f"Received non-JSON message: {message}")
             return
 
         # Route messages
@@ -70,6 +103,7 @@ class DeltaWebSocketClient:
         path = "/live"
         signature_data = method + timestamp + path
         signature = self._generate_signature(self.api_secret, signature_data)
+        logger.info("Sending authentication request")
         ws.send(
             json.dumps({
                 "type": "auth",
@@ -86,6 +120,7 @@ class DeltaWebSocketClient:
         return hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
 
     def _subscribe(self, ws: websocket.WebSocketApp, channel: str, symbols: List[str]) -> None:
+        logger.info(f"Subscribing to channel: {channel} with symbols: {symbols}")
         ws.send(
             json.dumps({
                 "type": "subscribe",
@@ -100,6 +135,7 @@ class DeltaWebSocketClient:
 
         # Authentication success -> subscribe to channels
         if msg_type == "success" and msg.get("message") == "Authenticated":
+            logger.info("Authentication successful")
             for channel, symbols in self.subscriptions.items():
                 self._subscribe(ws, channel, symbols)
             return
@@ -107,29 +143,32 @@ class DeltaWebSocketClient:
         # Orders
         if msg_type == "orders":
             if self.callbacks["orders"]:
+                logger.info("Orders update received")
                 self.callbacks["orders"](msg)
             else:
-                print("Orders Callback: Not Available")
+                logger.warning("Orders Callback: Not Available")
             return
 
         # Positions
         if msg_type == "positions":
             if self.callbacks["positions"]:
+                logger.info("Positions update received")
                 self.callbacks["positions"](msg)
             else:
-                print("Positions Callback: Not Available")
+                logger.warning("Positions Callback: Not Available")
             return
 
         # Ticker
         if msg_type in ("ticker", "v2/ticker"):
             if self.callbacks["ticker"]:
+                logger.info("Ticker update received")
                 self.callbacks["ticker"](msg)
             else:
-                print("Ticker Callback: Not Available")
+                logger.warning("Ticker Callback: Not Available")
             return
 
-        # Fallback: print any other messages
-        print("Other Message:", msg)
+        # Fallback: log any other messages
+        logger.debug(f"Other Message: {msg}")
 
 
 

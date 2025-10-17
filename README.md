@@ -208,3 +208,121 @@ Limit orders for fee savings
 }
 
 ```
+
+
+
+
+```py
+
+om app.delta_api import DeltaAPI
+import time
+from app.config import config
+
+delta_api = DeltaAPI(
+    base_url='https://api.india.delta.exchange',
+    api_key=config.api_key,
+    api_secret=config.api_secret,
+    client_id=config.client_id
+)
+
+----------------------------- Emergency Exit ----------------------------- #
+data = delta_api.emergency_exit()
+print(data)
+
+
+----------------------------- Get Balance ----------------------------- #
+print("----------------------------- Get Balance -----------------------------")
+balance = delta_api.get_balance()
+print(f"Balance Response: {balance}")
+
+# # Get current price from ticker
+
+# ----------------------------- Create Entry, Stoploss, Target ----------------------------- #
+ticker_data = delta_api.get_ticker("VFYUSD")
+current_price = float(ticker_data.get('mark_price'))
+
+# # Set order side (change this to "buy" or "sell" as needed)
+order_side = "buy"  # Change to "buy" or "sell"
+
+# # # Calculate entry, stoploss, and target prices based on side
+entry_price = current_price  # Entry at current price
+
+if order_side == "buy":
+    stop_loss_price = current_price * 0.99 # 1% below current price
+    edit_stoploss_price = current_price * 0.98 # 2% below current price
+    target_price = current_price * 1.01 # 1% above current price
+    edit_target_price = current_price * 1.02 # 2% above current price
+else:
+    stop_loss_price = current_price * 1.01 # 1% above current price
+    edit_stoploss_price = current_price * 1.02 # 2% above current price
+    target_price = current_price * 0.99 # 1% below current price
+    edit_target_price = current_price * 0.98 # 2% below current price
+
+print(f"Entry Price: ${entry_price}")
+print(f"Stop Loss: ${stop_loss_price}")
+print(f"Target: ${target_price}")
+
+print("----------------------------- Create Entry, Stoploss, Target -----------------------------")
+product_id = ticker_data.get('product_id')
+if product_id:
+    entry_resp = delta_api.create_entry(
+        product_id=product_id,
+        size=1,
+        side=order_side,
+        entry_price=entry_price,
+        leverage=20
+    )
+    print("Entry response:")
+    print(entry_resp)
+
+
+    #  STOPLOSS AND TARGET
+    time.sleep(20)
+    st_resp = delta_api.create_stoploss_target(
+        product_id=product_id,
+        symbol=ticker_data.get('symbol'),
+        stoploss_price=stop_loss_price,
+        target_price=target_price,
+    )
+    print("Stoploss/Target response:")
+    print(st_resp)
+
+
+    time.sleep(10)
+
+    edit_resp = delta_api.edit_stoploss_target(
+        order_id = st_resp.get('stop_loss_order').get('id'),
+        product_id = product_id,
+        symbol = ticker_data.get('symbol'),
+        stoploss_price = edit_stoploss_price,
+        target_price = edit_target_price,
+    )
+    print("Edit response:")
+    print(edit_resp)
+
+    time.sleep(5)
+
+    print("----------------------------- Get All Open Orders -----------------------------")
+
+
+    all_open_orders = delta_api.get_all_open_orders()
+    print(f"All open orders: {all_open_orders}")
+
+    time.sleep(5)
+
+    print("----------------------------- Get All Open Positions -----------------------------")
+
+    all_open_positions = delta_api.get_all_open_positions()
+    print(f"All open positions: {all_open_positions}")
+
+
+    time.sleep(5)
+
+    print("----------------------------- Emergency Exit -----------------------------")
+
+    emergency_exit = delta_api.emergency_exit()
+    print(f"Emergency exit: {emergency_exit}")
+
+
+
+```
