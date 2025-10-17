@@ -47,10 +47,29 @@ class DeltaAPI:
             logger.error(f"Error fetching ticker: {str(e)}")
             raise
 
-    def get_position(self, product_id: int) -> Dict[str, Any]:
+    def get_all_open_positions(self) -> Dict[str, Any]:
         try:
-            logger.info(f"Fetching position for product: {product_id}")
-            return self.client.get_position(product_id)
+            logger.info(f"Fetching all open positions")
+            data = self.client.request(method="GET", path="/v2/positions/margined",auth=True)
+            data = data.json()
+            cleaned = []
+            for item in data.get("result", []):
+                cleaned.append({
+                    "symbol": item.get("product_symbol"),
+                    "entry_price": item.get("entry_price"),
+                    "mark_price": item.get("mark_price"),
+                    "liquidation_price": item.get("liquidation_price"),
+                    "margin": item.get("margin"),
+                    "leverage": item.get("product", {}).get("default_leverage", "N/A"),
+                    "unrealized_pnl": item.get("unrealized_pnl"),
+                    "realized_pnl": item.get("realized_pnl"),
+                    "size": item.get("size"),
+                    "margin_mode": item.get("margin_mode"),
+                    "commission": item.get("commission"),
+                    "created_at": item.get("created_at"),
+                })
+            return cleaned
+
         except Exception as e:
             logger.error(f"Error fetching position: {str(e)}")
             raise
@@ -204,9 +223,9 @@ class DeltaAPI:
             raise
 
     # ---------- Emergency Exit ----------
-    def emergency_exit(self, product_id: Optional[int] = None) -> Dict[str, Any]:
+    def emergency_exit(self) -> Dict[str, Any]:
         try:
-            logger.warning(f"🚨 Emergency Exit Initiated for {product_id if product_id else 'ALL'}")
+            logger.warning(f"🚨 Emergency Exit Initiated for ALL")
 
             result = {
                 "success": True,
@@ -215,24 +234,14 @@ class DeltaAPI:
                 "errors": []
             }
 
-            cancel_result = self.cancel_all_orders(product_id)
+            cancel_result = self.cancel_all_orders()
+            payload = {
+                "close_all_portfolio": True,
+                "close_all_isolated": True,
+                "user_id": 82942579
+            }
+            exit_positions = self.client.request(method="POST", path="/v2/positions/close_all", payload=payload, auth=True)
             result["cancelled_orders"] = cancel_result.get("cancelled_orders", [])
-
-            if product_id:
-                try:
-                    position = self.get_position(product_id)
-                    size = abs(position.get("result", {}).get("size", 0))
-                    if size > 0:
-                        side = "sell" if position["result"]["size"] > 0 else "buy"
-                        close = self.client.place_order(
-                            product_id=product_id,
-                            size=size,
-                            side=side,
-                            order_type=DeltaOrderType.MARKET
-                        )
-                        result["closed_positions"].append(close)
-                except Exception as e:
-                    result["errors"].append(str(e))
 
             logger.warning(f"✅ Emergency Exit Completed")
             return result

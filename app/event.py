@@ -34,16 +34,24 @@ class RedisSubscriber:
         
         # Setup logging
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        
-        # Create console handler if not already exists
-        if not self.logger.handlers:
+
+        # Only configure if no handlers exist at the root logger level
+        if not logging.getLogger(__name__).hasHandlers():
+            self.logger.setLevel(logging.INFO)
             handler = logging.StreamHandler()
             formatter = logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
             )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
+    
+
+    def add_callback_arguments(self, **kwargs) -> None:
+        """
+        Add arguments to the callback function
+        """
+        self.kwargs = kwargs
+        self.logger.info(f"Callback function arguments added successfully: {kwargs}")
     
     def set_callback(self, callback_func: Callable[[str, Dict[str, Any]], None]) -> None:
         """
@@ -103,10 +111,10 @@ class RedisSubscriber:
                         data = json.loads(message['data'])
                         channel = message['channel']
                         
-                        self.logger.info(f"📡 Received message from channel: {channel}")
+                        self.logger.info(f"📡 Received message from channel: {channel} Batch id: {data.get('data').get('batch_id')}")
                         
                         # Call the callback function with channel and data
-                        self.callback(channel, data)
+                        self.callback(channel, data, **self.kwargs)
                         
                     except json.JSONDecodeError as e:
                         self.logger.error(f"Failed to parse JSON data: {e}")
@@ -144,43 +152,3 @@ class RedisSubscriber:
         """Context manager exit"""
         self.stop_listening()
 
-
-def main():
-    """
-    Example usage of RedisSubscriber class
-    """
-    def my_callback(channel: str, data: Dict[str, Any]) -> None:
-        """
-        Example callback function
-        
-        Args:
-            channel: Channel name where message was received
-            data: Parsed JSON data from the message
-        """
-        print("=" * 80)
-        print(f"📡 Channel: {channel}")
-        print("-" * 80)
-        print(json.dumps(data, indent=2))
-        print("-" * 80)
-    
-    # Create subscriber instance
-    subscriber = RedisSubscriber()
-    
-    try:
-        # Connect to Redis (automatically subscribes to channel)
-        subscriber.connect()
-        
-        # Set callback function
-        subscriber.set_callback(my_callback)
-        
-        # Start listening
-        subscriber.start_listening()
-        
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        subscriber.stop_listening()
-
-
-if __name__ == "__main__":
-    main()
