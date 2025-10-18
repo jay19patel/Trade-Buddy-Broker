@@ -143,8 +143,15 @@ class DeltaWebSocketClient:
         # Orders
         if msg_type == "orders":
             if self.callbacks["orders"]:
-                logger.info("Orders update received")
-                self.callbacks["orders"](msg)
+                action = msg.get("action")
+                logger.info(f"Orders update received - Action: {action}")
+
+                # For snapshot: pass the result array
+                if action == "snapshot":
+                    self.callbacks["orders"](msg.get("result", []))
+                # For create/delete: pass the order data as a single item list
+                else:
+                    self.callbacks["orders"]([msg])
             else:
                 logger.warning("Orders Callback: Not Available")
             return
@@ -152,8 +159,15 @@ class DeltaWebSocketClient:
         # Positions
         if msg_type == "positions":
             if self.callbacks["positions"]:
-                logger.info("Positions update received")
-                self.callbacks["positions"](msg)
+                action = msg.get("action")
+                logger.info(f"Positions update received - Action: {action}")
+
+                # For snapshot: pass the result array
+                if action == "snapshot":
+                    self.callbacks["positions"](msg.get("result", []))
+                # For create/delete: pass the position data as a single item list
+                else:
+                    self.callbacks["positions"]([msg])
             else:
                 logger.warning("Positions Callback: Not Available")
             return
@@ -173,26 +187,28 @@ class DeltaWebSocketClient:
 
 
 
-# def order_handle(message: dict) -> None:
-#         print("-----------------[Order]-----------------")
-#         results = message.get("result", [])
-#         if not results:
-#             print("No Orders found.")
-#             return
-#         print(f"Total Orders: {len(results)}")
-#         for order in results:
-#             print(order)
-        
+# def order_handle(orders: list) -> None:
+#     print("-----------------[Order]-----------------")
+#     if not orders:
+#         print("No Orders found.")
+#         return
+#     print(f"Total Orders: {len(orders)}")
+#     for order in orders:
+#         print(f"Order ID: {order.get('id')}, Symbol: {order.get('symbol')}, "
+#               f"Side: {order.get('side')}, Size: {order.get('size')}, "
+#               f"State: {order.get('state')}, Action: {order.get('action')}")
 
-# def positions_handle(message: dict) -> None:
+
+# def positions_handle(positions: list) -> None:
 #     print("-----------------[Positions]-----------------")
-#     results = message.get("result", [])
-#     if not results:
+#     if not positions:
 #         print("No Positions found.")
 #         return
-#     print(f"Total Positions: {len(results)}")
-#     for position in results:
-#         print(position)
+#     print(f"Total Positions: {len(positions)}")
+#     for position in positions:
+#         print(f"Symbol: {position.get('symbol')}, Size: {position.get('size')}, "
+#               f"Entry Price: {position.get('entry_price')}, "
+#               f"Realized PnL: {position.get('realized_pnl')}, Action: {position.get('action')}")
 
 
 
