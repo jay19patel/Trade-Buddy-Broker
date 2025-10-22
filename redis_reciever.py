@@ -7,56 +7,86 @@ from app.delta_api import DeltaAPI
 from app.config import config
 from typing import Callable, Optional, Dict, Any
 import json
-
+from app.trade_calculator import TradeCalculator
 
 def main():
     """
     Example usage of RedisSubscriber class
     """
-    def my_callback(channel: str, data: Dict[str, Any],**kwargs) -> None:
+    def my_callback(channel: str, data: Dict[str, Any], **kwargs) -> None:
         try:
-       # data is already parsed JSON, no need to parse again
-            delta_api : DeltaAPI = kwargs.get("delta")
+            # data is already parsed JSON
+            delta_api: DeltaAPI = kwargs.get("delta")
+            results = data.get("data", {}).get("results", [])
             res_data = []
-            result = data.get("data", {}).get("results", [])
-            if result and len(result) > 0:
-                for symbol_data in result:
-                    symbol = symbol_data.get("symbol")
-                    strategies = symbol_data.get("strategies", [])  
-                    print(f"Symbol: {symbol} Strategies: {strategies}")
-                    for strategy in strategies:
-                        signal_type = strategy.get("signal_type")
-                        success = strategy.get("sucess", False)  # Note: keeping the typo as it appears in the data
-                        if signal_type != "HOLD" and success:
-                            res_data.append(strategy)
-                        else:
-                            print(f"SKIPPING HOLD SIGNAL for {symbol} - {strategy.get('strategy_name')}")
-            res_data = sorted(res_data, key=lambda x: x.get("confidence"), reverse=True)
-            print(f"Res data: {res_data}")
-            # [{'strategy_name': 'EMA Crossover Strategy', 'symbol': 'ETH-USD', 'signal_type': 'BUY', 'confidence': 0.9, 'execution_time': 0.2605619430541992, 'timestamp': '2025-10-16T17:26:26.215781+00:00', 'price': 3500.25, 'created_at': '2025-10-16 17:27:27.052658+00:00', '_id': '68f12affa35bc12cbe3ca58c', 'sucess': True}, {'strategy_name': 'Bollinger Bands Mean Reversion Strategy', 'symbol': 'BTC-USD', 'signal_type': 'BUY', 'confidence': 0.85, 'execution_time': 0.2602965831756592, 'timestamp': '2025-10-16T17:26:26.215781+00:00', 'price': 67500.5, 'created_at': '2025-10-16 17:27:27.047146+00:00', '_id': '68f12aff8b680056ab3ca58a', 'sucess': True}, {'strategy_name': 'MACD Convergence Divergence Strategy', 'symbol': 'BTC-USD', 'signal_type': 'SELL', 'confidence': 0.75, 'execution_time': 0.36953139305114746, 'timestamp': '2025-10-16T17:26:26.215781+00:00', 'price': 67500.5, 'created_at': '2025-10-16 17:27:27.157807+00:00', '_id': '68f12affcc5b501c1c3ca58b', 'sucess': True}]
+
+            if not results:
+                print("No results found in data.")
+                return
+
+            for symbol_data in results:
+                symbol = symbol_data.get("symbol")
+                strategies = symbol_data.get("strategies", [])
+
+                if not strategies:
+                    print(f"No strategies for {symbol}")
+                    continue
+
+                # ✅ Pick the strategy with the highest confidence
+                best_strategy = max(strategies, key=lambda s: s.get("confidence", 0.0))
+
+                signal_type = best_strategy.get("signal_type")
+                success = best_strategy.get("sucess", True)  # Keep typo as in source
+
+                print(f"Symbol: {symbol} | Best Strategy: {best_strategy.get('strategy_name')} | Confidence: {best_strategy.get('confidence')} | Signal: {signal_type}")
+
+                # Skip HOLD or unsuccessful signals
+                if signal_type == "HOLD" or not success:
+                    print(f"Skipping HOLD or failed strategy for {symbol}")
+                    continue
+
+                res_data.append(best_strategy)
+
+            # ✅ Sort final selected strategies by confidence
+            res_data = sorted(res_data, key=lambda x: x.get("confidence", 0), reverse=True)
+
+            print(f"Filtered Result Data (Highest per symbol): {res_data}")
+
+            # === Trading Execution ===
             for trade in res_data:
                 symbol = trade.get("symbol")
                 signal_type = trade.get("signal_type")
 
                 ticker_data = delta_api.get_ticker(symbol)
-                product_id = ticker_data.get('product_id')
-                current_price = float(ticker_data.get('mark_price'))
-                leverage = ticker_data.get('leverage')
+                product_id = ticker_data.get("product_id")
+                current_price = float(ticker_data.get("mark_price"))
+                leverage = int(ticker_data.get("leverage"))
+                lot_size = float(ticker_data.get("contract_value"))
+
                 if delta_api.is_already_in_position_or_order(symbol):
                     print(f"Already in position for {symbol}")
                     continue
-                else:
-                    delta_api.create_entry(
-                        product_id=product_id,
-                        size=1,
-                        side=signal_type.lower(),
-                        entry_price=current_price * 1.01, # 1% above current price
-                        leverage=leverage
-                    )
-                    print(f"Created entry for {symbol}")
-            # return res_data
+
+                # Uncomment to place order
+                balance = delta_api.get_balance()
+                balance_usd = balance.get("available_balance_usd")
+                trade_setup = TradeCalculator.calculate_quantity(capital=float(balance_usd), mark_price=current_price, contract_value=lot_size, leverage=leverage, side=signal_type.lower())
+                print("--------------[Trade Setup]------------------")
+                print(f"Trade Setup: {trade_setup}")
+                print("----------------------------------------------")
+                delta_api.create_entry(
+                    product_id=product_id,
+                    size=trade_setup.get("quantity"),
+                    side=signal_type.lower(),
+                    entry_price=trade_setup.get("entry_price"),
+                    leverage=leverage
+                )
+
+                print(f"Created entry for {symbol}")
+
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error in callback: {e}")
+
 
     delta_api = DeltaAPI(
         base_url='https://api.india.delta.exchange',

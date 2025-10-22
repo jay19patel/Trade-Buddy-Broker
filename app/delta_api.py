@@ -279,7 +279,7 @@ class DeltaAPI:
     def create_entry(
         self,
         product_id: int,
-        size: int,
+        size: float,
         side: str,
         entry_price: float,
         leverage: int
