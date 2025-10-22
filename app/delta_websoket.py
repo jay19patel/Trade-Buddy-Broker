@@ -2,40 +2,14 @@ import json
 import time
 import hmac
 import hashlib
+import signal
+import sys
 from typing import Callable, Dict, List, Optional
 import websocket
-import logging
-import os
-from datetime import datetime
+from app.logger import get_websocket_logger
 
-
-# ============ LOGGING SETUP ============
-log_dir = "logs"
-os.makedirs(log_dir, exist_ok=True)
-
-log_file = os.path.join(log_dir, f"delta_websocket_{datetime.now().strftime('%Y%m%d')}.log")
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Clear any existing handlers to avoid duplicates
-logger.handlers = []
-
-# File handler
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.INFO)
-
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-# Formatter with file and function name
-formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add handlers
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+# Initialize centralized logger
+logger = get_websocket_logger()
 
 
 class DeltaWebSocketClient:
@@ -63,20 +37,92 @@ class DeltaWebSocketClient:
         }
 
         self._ws_app: Optional[websocket.WebSocketApp] = None
+        self._should_reconnect = True
+        self._reconnect_attempts = 0
+        self._max_reconnect_attempts = 10
+        self._reconnect_delay = 5  # seconds
+        self._is_connected = False
+        
+        # Setup signal handlers for graceful shutdown
+        self._setup_signal_handlers()
+
+    def _setup_signal_handlers(self):
+        """Setup signal handlers for graceful shutdown"""
+        def signal_handler(signum, frame):
+            logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+            self.disconnect()
+            sys.exit(0)
+        
+        signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+        signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 
     def connect(self) -> None:
-        self._ws_app = websocket.WebSocketApp(
-            self.websocket_url,
-            on_open=self._on_open,
-            on_message=self._on_message,
-            on_error=self._on_error,
-            on_close=self._on_close,
-        )
-        self._ws_app.run_forever()
+        """Connect to WebSocket with automatic reconnection"""
+        try:
+            while self._should_reconnect and self._reconnect_attempts < self._max_reconnect_attempts:
+                try:
+                    logger.info(f"Connecting to WebSocket (Attempt {self._reconnect_attempts + 1}/{self._max_reconnect_attempts})")
+                    self._ws_app = websocket.WebSocketApp(
+                        self.websocket_url,
+                        on_open=self._on_open,
+                        on_message=self._on_message,
+                        on_error=self._on_error,
+                        on_close=self._on_close,
+                    )
+                    
+                    # Run with ping/pong for better connection monitoring
+                    self._ws_app.run_forever(
+                        ping_interval=30,  # Send ping every 30 seconds
+                        ping_timeout=10,   # Wait 10 seconds for pong
+                        ping_payload="ping"
+                    )
+                    
+                except KeyboardInterrupt:
+                    logger.info("KeyboardInterrupt received, stopping...")
+                    self.disconnect()
+                    break
+                except Exception as e:
+                    logger.error(f"WebSocket connection failed: {e}")
+                    self._reconnect_attempts += 1
+                    if self._reconnect_attempts < self._max_reconnect_attempts and self._should_reconnect:
+                        logger.info(f"Reconnecting in {self._reconnect_delay} seconds...")
+                        time.sleep(self._reconnect_delay)
+                    else:
+                        logger.error("Max reconnection attempts reached. Stopping.")
+                        break
+            
+            if not self._should_reconnect:
+                logger.info("WebSocket reconnection stopped by user")
+                
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received in main loop, stopping...")
+            self.disconnect()
+        except Exception as e:
+            logger.error(f"Unexpected error in connect: {e}")
+            self.disconnect()
+    
+    def disconnect(self) -> None:
+        """Disconnect WebSocket and stop reconnection"""
+        logger.info("Initiating WebSocket disconnect...")
+        self._should_reconnect = False
+        
+        if self._ws_app:
+            try:
+                # Close the WebSocket connection
+                self._ws_app.close()
+                self._is_connected = False
+                logger.info("WebSocket disconnected successfully")
+            except Exception as e:
+                logger.error(f"Error during WebSocket disconnect: {e}")
+        
+        # Reset connection state
+        self._reconnect_attempts = 0
 
     # --------------------------- Event Handlers --------------------------- #
     def _on_open(self, ws: websocket.WebSocketApp) -> None:
         logger.info("Socket opened")
+        self._is_connected = True
+        self._reconnect_attempts = 0  # Reset reconnection attempts on successful connection
         self._send_authentication(ws)
 
     def _on_error(self, ws: websocket.WebSocketApp, error) -> None:
@@ -84,6 +130,12 @@ class DeltaWebSocketClient:
 
     def _on_close(self, ws: websocket.WebSocketApp, close_status_code, close_msg) -> None:
         logger.info(f"Socket closed with status: {close_status_code} and message: {close_msg}")
+        self._is_connected = False
+        
+        if self._should_reconnect and self._reconnect_attempts < self._max_reconnect_attempts:
+            logger.info("Connection lost, will attempt to reconnect...")
+        else:
+            logger.info("Connection closed and reconnection disabled")
 
     def _on_message(self, ws: websocket.WebSocketApp, message: str) -> None:
         try:
@@ -184,49 +236,3 @@ class DeltaWebSocketClient:
         # Fallback: log any other messages
         logger.debug(f"Other Message: {msg}")
 
-
-
-
-# def order_handle(orders: list) -> None:
-#     print("-----------------[Order]-----------------")
-#     if not orders:
-#         print("No Orders found.")
-#         return
-#     print(f"Total Orders: {len(orders)}")
-#     for order in orders:
-#         print(f"Order ID: {order.get('id')}, Symbol: {order.get('symbol')}, "
-#               f"Side: {order.get('side')}, Size: {order.get('size')}, "
-#               f"State: {order.get('state')}, Action: {order.get('action')}")
-
-
-# def positions_handle(positions: list) -> None:
-#     print("-----------------[Positions]-----------------")
-#     if not positions:
-#         print("No Positions found.")
-#         return
-#     print(f"Total Positions: {len(positions)}")
-#     for position in positions:
-#         print(f"Symbol: {position.get('symbol')}, Size: {position.get('size')}, "
-#               f"Entry Price: {position.get('entry_price')}, "
-#               f"Realized PnL: {position.get('realized_pnl')}, Action: {position.get('action')}")
-
-
-
-# subscriptions = {
-#         "orders": ["all"],
-#         "positions": ["all"]
-#     }
-
-
-
-# client = DeltaWebSocketClient(
-#         websocket_url=config.websocket_url,
-#         api_key=config.api_key,
-#         api_secret=config.api_secret,
-#         subscriptions=subscriptions,
-#         orders_callback = order_handle ,
-#         positions_callback = positions_handle,
-#         ticker_callback = None,
-#     )
-
-# client.connect()

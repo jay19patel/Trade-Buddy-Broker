@@ -4,39 +4,11 @@ Listens to strategy results and batch completions in real-time with callback sup
 """
 import redis
 import json
-import logging
-import os
-from datetime import datetime
 from typing import Callable, Optional, Dict, Any
-
-
-# ============ LOGGING SETUP ============
-log_dir = "logs"
-os.makedirs(log_dir, exist_ok=True)
-
-log_file = os.path.join(log_dir, f"event_{datetime.now().strftime('%Y%m%d')}.log")
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Clear any existing handlers to avoid duplicates
-logger.handlers = []
-
-# File handler
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.INFO)
-
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-# Formatter with file and function name
-formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add handlers
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+from app.logger import get_logger
+from app.config import config
+# Use centralized logger
+logger = get_logger('event')
 
 
 class RedisSubscriber:
@@ -54,11 +26,8 @@ class RedisSubscriber:
             db: Redis database number
             channel: Channel to subscribe to
         """
-        self.host = host
-        self.port = port
-        self.db = db
-        self.channel = channel
         self.redis_client: Optional[redis.Redis] = None
+        self.channel = channel
         self.pubsub: Optional[redis.client.PubSub] = None
         self.callback: Optional[Callable[[str, Dict[str, Any]], None]] = None
         self.is_listening = False
@@ -84,11 +53,7 @@ class RedisSubscriber:
     def connect(self) -> None:
         """Connect to Redis, create pubsub object and subscribe to channel"""
         try:
-            self.redis_client = redis.Redis(
-                host=self.host,
-                port=self.port,
-                db=self.db,
-                decode_responses=True
+            self.redis_client = redis.from_url(config.redis_url
             )
 
             # Test connection
@@ -97,7 +62,7 @@ class RedisSubscriber:
             self.pubsub = self.redis_client.pubsub()
             self.pubsub.subscribe(self.channel)
 
-            logger.info(f"Connected to Redis at {self.host}:{self.port} (db: {self.db})")
+            logger.info(f"Connected to Redis")
             logger.info(f"Subscribed to channel: {self.channel}")
 
         except Exception as e:

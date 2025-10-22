@@ -1,39 +1,12 @@
 from delta_rest_client import DeltaRestClient
 from delta_rest_client.delta_rest_client import OrderType as DeltaOrderType
 from typing import Dict, Any, Optional, List, Tuple
-import logging
 from datetime import datetime
 from functools import wraps
-import os
+from app.logger import get_delta_api_logger
 
-
-# ============ LOGGING SETUP ============
-log_dir = "logs"
-os.makedirs(log_dir, exist_ok=True)
-
-log_file = os.path.join(log_dir, f"delta_api_{datetime.now().strftime('%Y%m%d')}.log")
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Clear any existing handlers to avoid duplicates
-logger.handlers = []
-
-# File handler
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.INFO)
-
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-# Formatter with file and function name
-formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add handlers
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+# Initialize centralized logger
+logger = get_delta_api_logger()
 
 
 # ============ CUSTOM EXCEPTIONS ============

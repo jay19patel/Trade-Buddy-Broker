@@ -7,11 +7,7 @@ def send_test_data():
     Publish test data to Redis channel that main.py is listening to
     """
     # Create Redis client
-    redis_client = redis.Redis(
-        host="localhost",
-        port=6379,
-        decode_responses=True
-    )
+    redis_client = redis.from_url(config.redis_url)
 
     # Test data
     test_data = {
