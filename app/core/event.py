@@ -5,8 +5,8 @@ Listens to strategy results and batch completions in real-time with callback sup
 import redis
 import json
 from typing import Callable, Optional, Dict, Any
-from app.logger import get_logger
-from app.config import config
+from .logger import get_logger
+from .config import config
 # Use centralized logger
 logger = get_logger('event')
 

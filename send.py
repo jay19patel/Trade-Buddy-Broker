@@ -1,6 +1,6 @@
 import redis
 import json
-from app.config import config
+from app.core.config import config
 
 def send_test_data():
     """

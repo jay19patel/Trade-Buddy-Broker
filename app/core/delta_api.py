@@ -3,7 +3,7 @@ from delta_rest_client.delta_rest_client import OrderType as DeltaOrderType
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from functools import wraps
-from app.logger import get_delta_api_logger
+from .logger import get_delta_api_logger
 
 # Initialize centralized logger
 logger = get_delta_api_logger()

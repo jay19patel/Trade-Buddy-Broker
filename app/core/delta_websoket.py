@@ -6,7 +6,7 @@ import signal
 import sys
 from typing import Callable, Dict, List, Optional
 import websocket
-from app.logger import get_websocket_logger
+from .logger import get_websocket_logger
 
 # Initialize centralized logger
 logger = get_websocket_logger()

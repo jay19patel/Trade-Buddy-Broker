@@ -5,9 +5,9 @@ Simple, clean functions for data storage and retrieval
 """
 
 from pymongo import MongoClient
-from app.config import config
+from .config import config
 from datetime import datetime
-from app.logger import get_logger
+from .logger import get_logger
 
 # Use centralized logger
 logger = get_logger('database')

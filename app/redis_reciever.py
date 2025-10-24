@@ -1,15 +1,15 @@
 
 # ----------------------------- Redis Subscriber ----------------------------- #
 
-from app.event import RedisSubscriber
-from app.delta_api import DeltaAPI
-from app.config import config
+from app.core.event import RedisSubscriber
+from app.core.delta_api import DeltaAPI
+from app.core.config import config
 from typing import Callable, Optional, Dict, Any
 import json
 import signal
 import sys
-from app.trade_calculator import TradeCalculator
-from app.logger import get_logger
+from app.core.trade_calculator import TradeCalculator
+from app.core.logger import get_logger
 
 # Initialize centralized logger
 logger = get_logger('redis_receiver')

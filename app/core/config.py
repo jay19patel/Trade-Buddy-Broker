@@ -12,14 +12,14 @@ class Config(BaseSettings):
     redis_url: str
 
     # WebSocket settings
-    websocket_url: str = "wss://socket.india.delta.exchange"
-    heartbeat_interval_sec: int = 30
+    websocket_url: str 
+    heartbeat_interval_sec: int
     
     # MongoDB settings
     mongodb_url: str 
-    mongodb_database: str = "trade_buddy"
-    mongodb_positions_collection: str = "positions"
-    mongodb_orders_collection: str = "orders"
+    mongodb_database: str 
+    mongodb_positions_collection: str 
+    mongodb_orders_collection: str 
 
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -1,0 +1,28 @@
+services:
+  # Redis Receiver Service
+  redis_receiver:
+    build: .
+    container_name: trade_buddy_redis_receiver
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - .:/app  # Mount entire project for development
+    command: python app/redis_reciever.py
+    restart: unless-stopped
+
+  # Delta Listener Service
+  delta_listener:
+    build: .
+    container_name: trade_buddy_delta_listener
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - .:/app  # Mount entire project for development
+    command: python app/delta_listener.py
+    restart: unless-stopped
+
+networks:
+  default:
+    name: trade_buddy_network
