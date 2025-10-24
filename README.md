@@ -214,7 +214,7 @@ Limit orders for fee savings
 
 ```py
 
-om app.delta_api import DeltaAPI
+from app.delta_api import DeltaAPI
 import time
 from app.config import config
 
