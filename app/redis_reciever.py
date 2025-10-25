@@ -142,7 +142,7 @@ def main():
 
             # === Trading Execution ===
             for trade in res_data:
-                symbol = trade.get("symbol")
+                symbol = trade.get("symbol").replace("-", "")
                 signal_type = trade.get("signal_type")
                 
                 logger.info(f"EXECUTING TRADE | Symbol: {symbol} | Signal: {signal_type}")
