@@ -34,7 +34,7 @@ def send_test_data():
                             "price": 0.0,
                             "created_at": "2025-10-16 17:27:27.059386+00:00",
                             "_id": "68f12aff27dca72d9a3ca58a",
-                            "sucess": True
+                            "success": True
                         },
                         {
                             "strategy_name": "RSI Oversold/Overbought Strategy",
@@ -46,7 +46,7 @@ def send_test_data():
                             "price": 0.0,
                             "created_at": "2025-10-16 17:27:27.059303+00:00",
                             "_id": "68f12aff7a620e01da3ca58c",
-                            "sucess": True
+                            "success": True
                         },
                         {
                             "strategy_name": "Bollinger Bands Mean Reversion Strategy",
@@ -58,7 +58,7 @@ def send_test_data():
                             "price": 67500.50,
                             "created_at": "2025-10-16 17:27:27.047146+00:00",
                             "_id": "68f12aff8b680056ab3ca58a",
-                            "sucess": True
+                            "success": True
                         },
                         {
                             "strategy_name": "MACD Convergence Divergence Strategy",
@@ -70,7 +70,7 @@ def send_test_data():
                             "price": 67500.50,
                             "created_at": "2025-10-16 17:27:27.157807+00:00",
                             "_id": "68f12affcc5b501c1c3ca58b",
-                            "sucess": True
+                            "success": True
                         },
                         {
                             "strategy_name": "Volume Breakout Strategy",
@@ -82,7 +82,7 @@ def send_test_data():
                             "price": 0.0,
                             "created_at": "2025-10-16 17:27:27.179676+00:00",
                             "_id": "68f12affc270aff2853ca58b",
-                            "sucess": True
+                            "success": True
                         }
                     ]
                 }

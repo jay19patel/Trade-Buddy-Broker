@@ -129,7 +129,7 @@ def main():
                 best_strategy = max(strategies, key=lambda s: s.get("confidence", 0.0))
 
                 signal_type = best_strategy.get("signal_type")
-                success = best_strategy.get("sucess", True)  # Keep typo as in source
+                success = best_strategy.get("success", True)  # Keep typo as in source
 
                 logger.info(f"STRATEGY ANALYSIS | Symbol: {symbol} | Best Strategy: {best_strategy.get('strategy_name')} | Confidence: {best_strategy.get('confidence')} | Signal: {signal_type}")
 
