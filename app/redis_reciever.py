@@ -10,9 +10,6 @@ import signal
 import sys
 from app.core.trade_calculator import TradeCalculator
 from app.core.logger import get_logger
-from app.core.mongodb_utils import DatabaseManager
-from pymongo import MongoClient
-from datetime import datetime
 
 # Initialize centralized logger
 logger = get_logger('redis_receiver')
@@ -21,50 +18,6 @@ logger = get_logger('redis_receiver')
 subscriber_instance = None
 shutdown_in_progress = False
 
-def store_strategy_analysis_to_mongodb(complete_data: Dict[str, Any]) -> bool:
-    """
-    Store strategy analysis data in MongoDB in simple format
-    
-    Args:
-        complete_data: Complete data received from Redis including all symbols and strategies
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Connect to MongoDB
-        mongo_client = MongoClient(config.mongodb_url)
-        db = mongo_client[config.mongodb_database]
-        strategy_analysis_collection = db['strategy_analysis']
-        
-        # Create simple document structure
-        analysis_document = {
-            'datetime': datetime.now(),
-            'symbols': {}
-        }
-        
-        # Process each symbol and its strategies
-        results = complete_data.get('data', {}).get('results', [])
-        for symbol_data in results:
-            symbol = symbol_data.get('symbol')
-            strategies = symbol_data.get('strategies', [])
-            
-            # Store strategies directly as key-value pairs
-            analysis_document['symbols'][symbol] = strategies
-        
-        # Insert document into MongoDB
-        result = strategy_analysis_collection.insert_one(analysis_document)
-        document_id = str(result.inserted_id)
-        
-        logger.info(f"Strategy analysis stored successfully in MongoDB. Document ID: {document_id}")
-        logger.info(f"Stored data for {len(results)} symbols")
-        
-        mongo_client.close()
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to store strategy analysis in MongoDB: {e}", exc_info=True)
-        return False
 
 def signal_handler(signum, frame):
     """Handle Ctrl+C and other termination signals"""
@@ -100,14 +53,6 @@ def main():
                 
             # Log the complete received data for debugging
             logger.info(f"REDIS CALLBACK | Channel: {channel} | Data received: {json.dumps(data, indent=2)}")
-            
-            # ✅ Store complete data in MongoDB first
-            logger.info("Storing complete strategy analysis data in MongoDB...")
-            storage_success = store_strategy_analysis_to_mongodb(data)
-            if storage_success:
-                logger.info("✅ Complete data stored successfully in MongoDB")
-            else:
-                logger.error("❌ Failed to store complete data in MongoDB")
             
             # data is already parsed JSON
             results = data.get("data", {}).get("results", [])
