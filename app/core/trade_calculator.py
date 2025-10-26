@@ -1,3 +1,6 @@
+from app.core.config import config
+
+
 class TradeCalculator:
 
     # ==============================================================
@@ -11,7 +14,7 @@ class TradeCalculator:
         side = "buy" or "sell"
         """
         side = side.lower()
-        trade_percent = 30  # fixed
+        trade_percent = config.trade_percent
 
         # ✅ Half leverage logic
         effective_leverage = leverage / 2
@@ -41,8 +44,8 @@ class TradeCalculator:
         """
         side = side.lower()
 
-        risk_ratio = 0.02   # 2% stop
-        reward_ratio = 0.04 # 4% target
+        risk_ratio = config.risk_ratio
+        reward_ratio = config.reward_ratio
 
         if side == "buy":
             stop_loss = current_price * (1 - risk_ratio)

@@ -91,6 +91,13 @@ def main():
     """
     def my_callback(channel: str, data: Dict[str, Any], **kwargs) -> None:
         try:
+
+            delta_api: DeltaAPI = kwargs.get("delta")
+
+            balance = delta_api.get_balance()
+            balance_usd = balance.get("available_balance_usd")
+            logger.info(f"BALANCE | Balance: ${balance_usd}")
+                
             # Log the complete received data for debugging
             logger.info(f"REDIS CALLBACK | Channel: {channel} | Data received: {json.dumps(data, indent=2)}")
             
@@ -103,7 +110,6 @@ def main():
                 logger.error("❌ Failed to store complete data in MongoDB")
             
             # data is already parsed JSON
-            delta_api: DeltaAPI = kwargs.get("delta")
             results = data.get("data", {}).get("results", [])
             res_data = []
 
@@ -159,20 +165,17 @@ def main():
                     logger.info(f"Already in position for {symbol}")
                     continue
 
-                # Uncomment to place order
-                balance = delta_api.get_balance()
-                balance_usd = balance.get("available_balance_usd")
                 trade_setup = TradeCalculator.calculate_quantity(capital=float(balance_usd), mark_price=current_price, contract_value=lot_size, leverage=leverage, side=signal_type.lower())
                 
-                logger.info(f"TRADE SETUP | Balance: ${balance_usd} | Quantity: {trade_setup.get('quantity')} | Entry Price: {trade_setup.get('entry_price')}")
+                logger.info(f"TRADE SETUP | Balance: ${balance_usd} | Quantity: {trade_setup.get('quantity')} | Entry Price: {trade_setup.get('entry_price')} | Leverage: {leverage} | Used Capital: ${trade_setup.get('used_capital')} | Lot size: {trade_setup.get('lot_size')}")
                 
-                delta_api.create_entry(
-                    product_id=product_id,
-                    size=trade_setup.get("quantity"),
-                    side=signal_type.lower(),
-                    entry_price=trade_setup.get("entry_price"),
-                    leverage=leverage
-                )
+                # delta_api.create_entry(
+                #     product_id=product_id,
+                #     size=trade_setup.get("quantity"),
+                #     side=signal_type.lower(),
+                #     entry_price=trade_setup.get("entry_price"),
+                #     leverage=leverage
+                # )
 
                 logger.info(f"ENTRY ORDER CREATED | Symbol: {symbol} | Side: {signal_type.lower()} | Size: {trade_setup.get('quantity')}")
 
