@@ -169,13 +169,13 @@ def main():
                 
                 logger.info(f"TRADE SETUP | Balance: ${balance_usd} | Quantity: {trade_setup.get('quantity')} | Entry Price: {trade_setup.get('entry_price')} | Leverage: {leverage} | Used Capital: ${trade_setup.get('used_capital')} | Lot size: {trade_setup.get('lot_size')}")
                 
-                # delta_api.create_entry(
-                #     product_id=product_id,
-                #     size=trade_setup.get("quantity"),
-                #     side=signal_type.lower(),
-                #     entry_price=trade_setup.get("entry_price"),
-                #     leverage=leverage
-                # )
+                delta_api.create_entry(
+                    product_id=product_id,
+                    size=trade_setup.get("quantity"),
+                    side=signal_type.lower(),
+                    entry_price=trade_setup.get("entry_price"),
+                    leverage=leverage
+                )
 
                 logger.info(f"ENTRY ORDER CREATED | Symbol: {symbol} | Side: {signal_type.lower()} | Size: {trade_setup.get('quantity')}")
 
