@@ -7,7 +7,6 @@ Provides consistent logging across all modules with detailed information
 import logging
 import os
 import sys
-from datetime import datetime
 from typing import Optional
 from pathlib import Path
 
@@ -43,12 +42,9 @@ class TradeBuddyLogger:
         self.log_dir = Path("logs")
         self.log_dir.mkdir(exist_ok=True)
         
-        # Get current date for log file naming
-        current_date = datetime.now().strftime('%Y%m%d')
-        
-        # Log file paths
-        self.main_log_file = self.log_dir / f"trade_buddy_app_{current_date}.log"
-        self.error_log_file = self.log_dir / f"trade_buddy_app_errors_{current_date}.log"
+        # Log file paths (fixed filenames, no date)
+        self.main_log_file = self.log_dir / "trade_buddy_app.log"
+        self.error_log_file = self.log_dir / "trade_buddy_app_errors.log"
         
         # Create main logger
         self.logger = logging.getLogger('trade_buddy')
