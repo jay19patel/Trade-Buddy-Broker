@@ -5,6 +5,7 @@ import redis
 
 class Config(BaseSettings):
     # Delta Exchange API credentials
+    base_url: str
     api_key: str
     api_secret: str
     client_id: int

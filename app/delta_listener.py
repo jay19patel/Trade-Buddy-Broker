@@ -9,7 +9,7 @@ logger = get_logger('delta_listener')
 
 # Initialize Delta API
 delta_api = DeltaAPI(
-    base_url='https://api.india.delta.exchange',
+    base_url=config.base_url,
     api_key=config.api_key,
     api_secret=config.api_secret,
     client_id=config.client_id
