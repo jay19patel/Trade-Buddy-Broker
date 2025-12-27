@@ -299,7 +299,7 @@ class DeltaAPI:
                 size=size,
                 side=side.lower(),
                 order_type=DeltaOrderType.LIMIT,
-                limit_price="{:.8f}".format(entry_price).rstrip('0').rstrip('.'),
+                limit_price=str(entry_price),
             )
 
             if not entry_order or "id" not in entry_order:

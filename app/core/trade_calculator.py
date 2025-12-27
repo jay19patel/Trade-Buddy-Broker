@@ -48,10 +48,10 @@ class TradeCalculator:
         quantity = int(raw_quantity)
 
         return {
-            "used_capital": round(used_capital, 2),
+            "used_capital": used_capital,
             "quantity": quantity,
             "lot_size": contract_value,
-            "entry_price": round(mark_price, 8),
+            "entry_price": mark_price,
             "leverage": effective_leverage, # Return the actual leverage to be used
             "safe_leverage_limit": max_safe_leverage
         }
