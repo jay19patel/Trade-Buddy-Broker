@@ -27,7 +27,10 @@ def orders_handle(orders: list) -> None:
     
     for order in orders:
         try:
-            action = order.get('action', 'unknown')
+            action = order.get('action')
+            if not action:
+                logger.info("No action found in order")
+                continue
             order_id = order.get('id')
             symbol = order.get('product_symbol', order.get('symbol', 'unknown'))
             

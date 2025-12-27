@@ -112,14 +112,18 @@ def main():
 
                 trade_setup = TradeCalculator.calculate_quantity(capital=float(balance_usd), mark_price=current_price, contract_value=lot_size, leverage=leverage, side=signal_type.lower())
                 
-                logger.info(f"TRADE SETUP | Balance: ${balance_usd} | Quantity: {trade_setup.get('quantity')} | Entry Price: {trade_setup.get('entry_price')} | Leverage: {leverage} | Used Capital: ${trade_setup.get('used_capital')} | Lot size: {trade_setup.get('lot_size')}")
+                # Use the calculated safe leverage
+                execution_leverage = trade_setup.get("leverage")
+                safe_limit = trade_setup.get("safe_leverage_limit")
+
+                logger.info(f"TRADE SETUP | Balance: ${balance_usd} | Quantity: {trade_setup.get('quantity')} | Entry Price: {trade_setup.get('entry_price')} | Provided Lev: {leverage} | Safe Lev Limit: {safe_limit} | Executing Lev: {execution_leverage} | Used Capital: ${trade_setup.get('used_capital')}")
                 
                 delta_api.create_entry(
                     product_id=product_id,
                     size=trade_setup.get("quantity"),
                     side=signal_type.lower(),
                     entry_price=trade_setup.get("entry_price"),
-                    leverage=leverage
+                    leverage=execution_leverage
                 )
 
                 logger.info(f"ENTRY ORDER CREATED | Symbol: {symbol} | Side: {signal_type.lower()} | Size: {trade_setup.get('quantity')}")

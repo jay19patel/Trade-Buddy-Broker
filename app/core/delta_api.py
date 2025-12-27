@@ -261,8 +261,17 @@ class DeltaAPI:
         logger.info(f"Called with params: product_id={product_id}, size={size}, side={side}, entry_price={entry_price}, leverage={leverage}")
 
         # Input validation
-        if not all([product_id, size, side, entry_price, leverage]):
-            raise ValueError("All parameters (product_id, size, side, entry_price, leverage) are required")
+        # Input validation
+        if not product_id:
+            raise ValueError("product_id is required")
+        if size <= 0:
+            raise ValueError(f"Size must be positive, got {size}")
+        if not side:
+            raise ValueError("side is required")
+        if entry_price <= 0:
+            raise ValueError(f"Entry price must be positive, got {entry_price}")
+        if leverage <= 0:
+            raise ValueError(f"Leverage must be positive, got {leverage}")
 
         if side.upper() not in ["BUY", "SELL"]:
             raise ValueError(f"Invalid side '{side}'. Must be 'BUY' or 'SELL'")
@@ -290,7 +299,7 @@ class DeltaAPI:
                 size=size,
                 side=side.lower(),
                 order_type=DeltaOrderType.LIMIT,
-                limit_price=str(entry_price),
+                limit_price="{:.8f}".format(entry_price).rstrip('0').rstrip('.'),
             )
 
             if not entry_order or "id" not in entry_order:

@@ -15,13 +15,33 @@ class TradeCalculator:
         """
         side = side.lower()
         trade_percent = config.trade_percent
+        risk_ratio = config.risk_ratio
 
-        # ✅ Half leverage logic
-        effective_leverage = leverage / 2
+        # -------------------------------------------------------------
+        # 🛡️ Safe Leverage Calculation Logic
+        # -------------------------------------------------------------
+        # Goal: Ensure Liquidation Price is further away than Stop Loss
+        # Liquidation Distance ≈ 1 / Leverage
+        # Stop Loss Distance = risk_ratio
+        # We need: Liquidation Dist > Stop Loss Dist
+        # So: 1 / Leverage > risk_ratio  =>  Leverage < 1 / risk_ratio
+        # We use a safety buffer factor (e.g., 0.8) to be safe.
+        
+        safety_buffer = 0.8
+        max_safe_leverage = int(safety_buffer / risk_ratio)
+        
+        # Original logic: use half of provided leverage
+        proposed_leverage = int(leverage / 2)
+        
+        # Take the minimum of proposed vs safe
+        effective_leverage = min(proposed_leverage, max_safe_leverage)
+        
+        # Ensure at least 1x
+        effective_leverage = max(1, effective_leverage)
 
         used_capital = capital * (trade_percent / 100)
 
-        # Raw quantity (can be fractional)
+        # Raw quantity (can be fractional) - using effective_leverage
         raw_quantity = (used_capital * effective_leverage) / (mark_price * contract_value)
 
         # Integer quantity (whole number of contracts)
@@ -31,7 +51,9 @@ class TradeCalculator:
             "used_capital": round(used_capital, 2),
             "quantity": quantity,
             "lot_size": contract_value,
-            "entry_price": round(mark_price, 4),
+            "entry_price": round(mark_price, 8),
+            "leverage": effective_leverage, # Return the actual leverage to be used
+            "safe_leverage_limit": max_safe_leverage
         }
 
     # ==============================================================
@@ -61,9 +83,9 @@ class TradeCalculator:
 
         return {
             "side": side,
-            "entry_price": round(current_price, 4),
-            "stop_loss": round(stop_loss, 4),
-            "target": round(target, 4),
-            "liquidation_price": round(liquidation_price, 4),
-            "liquidation_warning_price": round(liquidation_warning_price, 4),
+            "entry_price": round(current_price, 8),
+            "stop_loss": round(stop_loss, 8),
+            "target": round(target, 8),
+            "liquidation_price": round(liquidation_price, 8),
+            "liquidation_warning_price": round(liquidation_warning_price, 8),
         }
