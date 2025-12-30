@@ -36,12 +36,21 @@ def orders_handle(orders: list) -> None:
             
             logger.info(f"Processing order: ID={order_id}, Symbol={symbol}, Action={action}")
             
-            # Store order directly as received (no modification)
-            stored_order_id = DatabaseManager.create_order(order)
-            if stored_order_id:
-                logger.info(f"Order stored in MongoDB with ID: {stored_order_id}")
+            # Store order based on action
+            if action.lower() in ['update', 'delete']:
+                if DatabaseManager.update_order(order):
+                    logger.info(f"Order updated ({action}): {order_id}")
+                else:
+                    # If update/delete fails (e.g. order not found), we might want to create it or just log warning.
+                    # For now, let's warn.
+                    logger.warning(f"Failed to update/delete order (or not found): {order_id}")
             else:
-                logger.error(f"Failed to store order: {order_id}")
+                # Store new order (action='create' or others)
+                stored_order_id = DatabaseManager.create_order(order)
+                if stored_order_id:
+                    logger.info(f"Order stored in MongoDB with ID: {stored_order_id}")
+                else:
+                    logger.error(f"Failed to store order: {order_id}")
             
         except Exception as e:
             logger.error(f"Error processing order {order.get('id', 'unknown')}: {str(e)}", exc_info=True)
@@ -112,6 +121,13 @@ def positions_handle(positions: list) -> None:
                     logger.info(f"Position closed successfully: {symbol}")
                 else:
                     logger.error(f"Failed to close position: {symbol}")
+            
+            elif action and action.lower() == "update":
+                logger.info(f"Position Update: {symbol}")
+                if DatabaseManager.update_position(position):
+                    logger.info(f"Position updated successfully: {symbol}")
+                else:
+                    logger.error(f"Failed to update position: {symbol}")
                     
         except Exception as e:
             logger.error(f"Error processing position {position.get('symbol', 'unknown')}: {str(e)}", exc_info=True)
