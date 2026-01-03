@@ -6,7 +6,7 @@ Simple, clean functions for data storage and retrieval
 
 from pymongo import MongoClient
 from .config import config
-from datetime import datetime
+from datetime import datetime, timezone
 from .logger import get_logger
 
 # Use centralized logger
@@ -35,7 +35,7 @@ class DatabaseManager:
         """
         try:
             # Add timestamp
-            order_data['created_at'] = datetime.now()
+            order_data['created_at'] = datetime.now(timezone.utc)
             
             # Get database connection
             mongo_client = MongoClient(config.mongodb_url)
@@ -68,7 +68,7 @@ class DatabaseManager:
         """
         try:
             # Add timestamp
-            position_data['created_at'] = datetime.now()
+            position_data['created_at'] = datetime.now(timezone.utc)
             position_data['status'] = 'open'
             
             # Get database connection
@@ -120,7 +120,7 @@ class DatabaseManager:
             # But simpler to just $set whatever comes in, except maybe 'action'.
             
             update_fields = {k: v for k, v in position_data.items() if k not in ['_id', 'action', 'type']}
-            update_fields['updated_at'] = datetime.now()
+            update_fields['updated_at'] = datetime.now(timezone.utc)
             
             result = positions_collection.update_one(
                 filter_query,
@@ -167,7 +167,7 @@ class DatabaseManager:
             filter_query = {'id': order_id}
             
             update_fields = {k: v for k, v in order_data.items() if k not in ['_id', 'action', 'type']}
-            update_fields['updated_at'] = datetime.now()
+            update_fields['updated_at'] = datetime.now(timezone.utc)
             
             result = orders_collection.update_one(
                 filter_query,
@@ -219,7 +219,7 @@ class DatabaseManager:
 
             update_data = {
                 'status': 'closed',
-                'close_at': datetime.now(),
+                'close_at': datetime.now(timezone.utc),
                 'realized_pnl': position.get('realized_pnl'),
                 'realized_funding': position.get('realized_funding'),
                 'realized_cashflow': position.get('realized_cashflow'),
