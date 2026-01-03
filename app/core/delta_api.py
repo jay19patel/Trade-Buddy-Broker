@@ -333,7 +333,7 @@ class DeltaAPI:
                 product_id=product_id,
                 size=size,
                 side=side.lower(),
-                order_type=DeltaOrderType.LIMIT,
+                order_type=DeltaOrderType.MARKET,
                 limit_price=str(entry_price),
             )
 
