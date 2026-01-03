@@ -121,7 +121,7 @@ def main():
                             delta_api.close_position(product_id, symbol)
                             import time
                             time.sleep(2) # Wait for closure to process
-                            should_skip = False # Explicitly NOT skipping, so we open the new reverse order
+                            should_skip = True # Skip creating new order, as per user request (Only close)
                         else:
                             logger.info(f"Signal matches existing {current_side} position. Holding/Skipping.")
                             should_skip = True

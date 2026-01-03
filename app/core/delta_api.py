@@ -147,7 +147,7 @@ class DeltaAPI:
             product_id=product_id,
             size=quantity,
             side=close_side,
-            order_type=DeltaOrderType.MARKET_ORDER,
+            order_type=DeltaOrderType.MARKET,
             reduce_only=True 
         )
 
