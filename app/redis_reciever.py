@@ -106,8 +106,40 @@ def main():
                 
                 logger.info(f"TICKER DATA | Symbol: {symbol} | Price: {current_price} | Leverage: {leverage} | Lot Size: {lot_size}")
 
-                if delta_api.is_already_in_position_or_order(symbol):
-                    logger.info(f"Already in position for {symbol}")
+                # Logic branching: If Exit on Signal is enabled, handle Flip/Hold logic.
+                # If disabled, use strict "Skip used symbol" logic.
+                should_skip = False
+                
+                if config.exit_on_signal:
+                    active_pos = delta_api.get_active_position(symbol)
+                    if active_pos:
+                        pos_size = float(active_pos.get('size', 0))
+                        current_side = 'buy' if pos_size > 0 else 'sell'
+                        
+                        if current_side != signal_type.lower():
+                            logger.info(f"FLIP SIGNAL: Existing {current_side} position vs New {signal_type} signal. Closing...")
+                            delta_api.close_position(product_id, symbol)
+                            import time
+                            time.sleep(2) # Wait for closure to process
+                            should_skip = False # Explicitly NOT skipping, so we open the new reverse order
+                        else:
+                            logger.info(f"Signal matches existing {current_side} position. Holding/Skipping.")
+                            should_skip = True
+                    else:
+                        # No active position.
+                        # Do we check for open orders? Standard behavior usually implies yes.
+                        # But user request "don't use already logic" implies if exit_on_signal is true, we rely on position check.
+                        # However, to be safe against double ordering on lag, we should check orders if no position.
+                        # But strictly following user: "if exit on signal, don't use the already check".
+                        # So if we are here (no pos), we proceed.
+                        pass
+                else:
+                    # Strict check: If ANY position or order exists, skip.
+                    if delta_api.is_already_in_position_or_order(symbol):
+                         logger.info(f"Already in position/order for {symbol}. Skipping.")
+                         should_skip = True
+
+                if should_skip:
                     continue
 
                 trade_setup = TradeCalculator.calculate_quantity(capital=float(balance_usd), mark_price=current_price, contract_value=lot_size, leverage=leverage, side=signal_type.lower())

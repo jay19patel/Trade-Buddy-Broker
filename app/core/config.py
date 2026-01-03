@@ -27,6 +27,7 @@ class Config(BaseSettings):
     trade_percent: float
     risk_ratio: float
     reward_ratio: float
+    exit_on_signal: bool = False
 
     @field_validator('trade_percent', mode='before')
     @classmethod

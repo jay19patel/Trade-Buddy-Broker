@@ -117,6 +117,41 @@ class DeltaAPI:
         return cleaned
 
     @handle_api_errors
+    def get_active_position(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Fetch active position for a specific symbol"""
+        positions = self.get_all_open_positions()
+        for position in positions:
+            if position.get('symbol') == symbol:
+                return position
+        return None
+
+    @handle_api_errors
+    def close_position(self, product_id: int, symbol: str) -> Dict[str, Any]:
+        """Close a position by placing a market order"""
+        logger.info(f"Closing position for {symbol}")
+        
+        position = self.get_active_position(symbol)
+        if not position:
+            logger.warning(f"No position found to close for {symbol}")
+            return {"success": False, "message": "Position not found"}
+            
+        size = float(position.get('size', 0))
+        # API usually returns signed size? 
+        # If so, abs(size) is quantity.
+        # Side to place is opposite of current.
+        
+        quantity = abs(size)
+        close_side = "sell" if size > 0 else "buy"
+        
+        return self.client.place_order(
+            product_id=product_id,
+            size=quantity,
+            side=close_side,
+            order_type=DeltaOrderType.MARKET_ORDER,
+            reduce_only=True 
+        )
+
+    @handle_api_errors
     def is_already_in_position_or_order(self, symbol: str) -> bool:
         logger.info(f"Called with params: symbol={symbol}")
         positions = self.get_all_open_positions()
