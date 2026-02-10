@@ -178,11 +178,25 @@ class DeltaAPI:
         if not data or "result" not in data or not data["result"]:
             raise BalanceError("No balance data received from API")
 
-        balance = data["result"][0]
+        # Find the USD asset from the list
+        balance_data = None
+        for asset in data["result"]:
+            if asset.get("asset_symbol") == "USD":
+                balance_data = asset
+                break
+        
+        if not balance_data:
+            logger.warning("USD asset not found in balance response. Available assets: " + 
+                          ", ".join([a.get("asset_symbol", "unknown") for a in data["result"]]))
+            # Return 0 balance if USD wallet not found to avoid crashing
+            return {
+                "available_balance_usd": 0,
+                "available_balance_inr": 0,
+            }
 
         result = {
-            "available_balance_usd": balance.get("available_balance", 0),
-            "available_balance_inr": balance.get("available_balance_inr", 0),
+            "available_balance_usd": balance_data.get("available_balance", 0),
+            "available_balance_inr": balance_data.get("available_balance_inr", 0),
         }
 
         logger.info(f"Response: {result}")
