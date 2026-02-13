@@ -8,6 +8,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - .:/app  # Mount entire project for development
+      - /app/.venv # Prevent host .venv from overriding container .venv
     command: uv run app/redis_reciever.py
     restart: unless-stopped
 
@@ -20,6 +21,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - .:/app  # Mount entire project for development
+      - /app/.venv # Prevent host .venv from overriding container .venv
     command: uv run app/delta_listener.py
     restart: unless-stopped
 
